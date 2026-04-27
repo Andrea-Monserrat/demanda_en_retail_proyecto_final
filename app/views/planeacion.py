@@ -15,36 +15,48 @@ def mostrar_vista_planeacion() -> None:
     st.header("Dirección de planeación")
 
     df = cargar_datos_dummy()
-    st.sidebar.header("Filtros")
+    with st.container():
+        st.subheader("Filtros de planeación")
 
-    tiendas = st.sidebar.multiselect(
-        "Selecciona tienda",
-        options=sorted(df["Tienda"].dropna().unique()),
-        default=sorted(df["Tienda"].dropna().unique()),
-    )
+        col1, col2, col3, col4 = st.columns(4)
 
-    categorias = st.sidebar.multiselect(
-        "Selecciona categoría",
-        options=sorted(df["Categoria"].dropna().unique()),
-        default=sorted(df["Categoria"].dropna().unique()),
-    )
+        with col1:
+            tiendas = st.multiselect(
+                "Tienda",
+                options=sorted(df["Tienda"].dropna().unique()),
+                default=sorted(df["Tienda"].dropna().unique()),
+                key="planeacion_tiendas",
+            )
 
-    producto = st.sidebar.multiselect(
-        "Selecciona tipo de producto",
-        options=sorted(df["item_category_name"].dropna().unique()),
-        default=sorted(df["item_category_name"].dropna().unique()),
-    )
+        with col2:
+            categorias = st.multiselect(
+                "Categoría",
+                options=sorted(df["Categoria"].dropna().unique()),
+                default=sorted(df["Categoria"].dropna().unique()),
+                key="planeacion_categorias",
+            )
 
-    temporadas = st.sidebar.multiselect(
-        "Selecciona temporada",
-        options=sorted(df["Temporada"].dropna().unique()),
-        default=sorted(df["Temporada"].dropna().unique()),
-    )
+        with col3:
+            productos = st.multiselect(
+                "Producto",
+                options=sorted(df["item_category_name"].dropna().unique()),
+                default=sorted(df["item_category_name"].dropna().unique()),
+                key="planeacion_productos",
+            )
+
+        with col4:
+            temporadas = st.multiselect(
+                "Temporada",
+                options=sorted(df["Temporada"].dropna().unique()),
+                default=sorted(df["Temporada"].dropna().unique()),
+                key="planeacion_temporadas",
+            )
+
 
     df_filtrado = df[
         (df["Tienda"].isin(tiendas)) &
         (df["Categoria"].isin(categorias)) &
-        (df["item_category_name"].isin(producto)) &
+        (df["item_category_name"].isin(productos)) &
         (df["Temporada"].isin(temporadas))
     ]
 
