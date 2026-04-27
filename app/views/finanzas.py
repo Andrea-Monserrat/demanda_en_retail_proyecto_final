@@ -1,10 +1,3 @@
-import streamlit as st
-
-#df = cargar_datos_dummy()
-#df_filtrado = df[df["tienda"].isin(tiendas)]
-#st.subheader("Datos base")
-#st.dataframe(df_filtrado, use_container_width=True)
-
 import pandas as pd
 import streamlit as st
 
