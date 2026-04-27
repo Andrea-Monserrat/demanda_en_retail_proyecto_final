@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Stack maestro para el POC de 1C Company (MGE parcial).
+  Despliega RDS + ECS Fargate como nested stacks.
+
+  IMPORTANTE: Sube rds.yaml y ecs.yaml a un bucket S3 antes de correr este stack.
+
+  Deploy:
+    aws cloudformation deploy \
+      --template-file main.yaml \
+      --stack-name 1c-retail-poc \
+      --capabilities CAPABILITY_NAMED_IAM \
+      --parameter-overrides \
+          VpcId=vpc-xxxxxxxx \
+          SubnetIds="subnet-aaa,subnet-bbb,subnet-ccc" \
+          DBPassword=tu-password-aqui \
+          ImageUri=123456789012.dkr.ecr.us-east-1.amazonaws.com/1c-app:latest \
+          TemplatesBucket=tu-bucket-con-templates \
+      --region us-east-1
+
+Parameters:
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC donde se despliegan RDS y ECS (debe ser la misma).
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Al menos 2 subnets públicas en diferentes AZs.
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    Description: Password para RDS. Se guarda en Secrets Manager.
+
+  ImageUri:
+    Type: String
+    Description: URI completo de la imagen en ECR (1c-app:latest).
+
+  TemplatesBucket:
+    Type: String
+    Description: Nombre del bucket S3 donde están rds.yaml y ecs.yaml.
+
+Resources:
+
+  RDSStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://${TemplatesBucket}.s3.amazonaws.com/cloudformation/rds.yaml'
+      Parameters:
+        VpcId: !Ref VpcId
+        SubnetIds: !Join [',', !Ref SubnetIds]
+        DBName: retail_poc
+        DBUsername: admin
+        DBPassword: !Ref DBPassword
+        SecretName: rds/1c-credentials
+        CreateReadReplica: 'false'
+
+  ECSStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: RDSStack
+    Properties:
+      TemplateURL: !Sub 'https://${TemplatesBucket}.s3.amazonaws.com/cloudformation/ecs.yaml'
+      Parameters:
+        VpcId: !Ref VpcId
+        SubnetIds: !Join [',', !Ref SubnetIds]
+        ImageUri: !Ref ImageUri
+        ServiceName: 1c-retail-app
+        Cpu: '512'
+        Memory: '1024'
+        DesiredCount: '1'
+        LogRetentionDays: '7'
+
+Outputs:
+
+  AppURL:
+    Description: URL pública del Streamlit (del ECS stack)
+    Value: !GetAtt ECSStack.Outputs.AppURL
+
+  RdsEndpoint:
+    Description: Endpoint del RDS (del RDS stack)
+    Value: !GetAtt RDSStack.Outputs.RdsEndpoint
+
+  RdsSecretName:
+    Description: Nombre del secret en Secrets Manager
+    Value: !GetAtt RDSStack.Outputs.RdsSecretName
