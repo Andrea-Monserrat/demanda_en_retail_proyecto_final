@@ -1,0 +1,20 @@
+# Referencias de clase — no forman parte del producto
+etl/northwind_etl_referencia.py
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
