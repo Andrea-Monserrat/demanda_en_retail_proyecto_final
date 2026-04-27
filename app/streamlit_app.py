@@ -10,13 +10,13 @@ from views.operativa import mostrar_vista_operativa
 
 
 st.set_page_config(
-    page_title="Retail Sales Forecasting",
+    page_title="1C Company Retail Sales",
     page_icon="📈",
     layout="wide",
 )
 
-st.title("📈 Retail Sales Forecasting")
-st.caption("App de análisis, predicción y seguimiento de ventas retail")
+st.title("📈 1C Company")
+st.caption("App de análisis, predicción y seguimiento de ventas retail by 1C Company")
 
 tab_general, tab_planeacion, tab_finanzas, tab_bi, tab_operativa = st.tabs(
     [
