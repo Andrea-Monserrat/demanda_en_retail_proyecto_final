@@ -1,25 +1,17 @@
-item_category_id,item_category_name,Tienda,Categoria,Temporada,Costo unitario,Fecha,Predicción
-0,PC - Гарнитуры/Наушники,A002,PC,1Q,34,26 abril 2025,"42,5"
-1,naovcO,B001,papeleria,2Q,252,27 abril 2025,315
-2,DVN DS,C4960,bolsas,3Q,114,28 abril 2025,"142,5"
-3,C NS,D3005,PC,4Q,240,29 abril 2025,300
-4,PC - NAN,A002,PC,1Q,162,30 abril 2025,"202,5"
-5,kfcms,B001,papeleria,2Q,300,26 enero 2025,375
-6,fncszamx,A002,bolsas,3Q,438,27 enero 2025,"547,5"
-7,cz njzcn,B001,PC,4Q,576,28 diciembre 2025,720
-8,cnjncoi,C4960,papeleria,1Q,714,29 diciembre 2025,"892,5"
-9,xnzjknczo,D3005,bolsas,2Q,852,30 diciembre 2025,1065
-10,zncovizn,C4960,bolsas,3Q,990,31 diciembre 2025,"1108,8"
-11,dhfewio,D3005,PC,4Q,1128,1 enero 2026,"1263,36"
-12,LF,A002,PC,1Q,1266,16 mayo 2025,"1417,92"
-13,ujffaj,B001,papeleria,2Q,1404,27 septiembre 2025,"1572,48"
-14,amfoaskg,C4960,bolsas,3Q,1542,28 septiembre 2025,"1727,04"
-15,waow,D3005,PC,4Q,1680,29 septiembre 2025,"1881,6"
-16,fcnskn,A002,PC,1Q,1818,30 septiembre 2025,"2036,16"
-17,dcjwan,B001,papeleria,2Q,1956,1 octubre 2025,2934
-18,czknjsn,A002,bolsas,3Q,34,2 octubre 2025,51
-19,axndjax,B001,PC,4Q,252,18 junio 2025,378
-20,scnnvd,C4960,papeleria,1Q,114,19 junio 2025,171
-21,nfcmksk,D3005,bolsas,2Q,240,20 junio 2025,360
-22,sj nvcd,C4960,bolsas,3Q,162,31 diciembre 2025,243
-23,xnmpw,D3005,PC,4Q,1128,1 enero 2026,1692
+item_category_id,item_category_name,Tienda,Categoria,Temporada,Costo_unitario_producto,Fecha,Forecast,Tipo,Piezas_vendidas,Venta_real
+0,Laptops,A002,Computo,2Q,10000,26/04/2025,450,Historico,400,6000000
+1,Mouse,B001,Accesorios,2Q,300,27/04/2025,350,Historico,315,94500
+2,Mochilas Laptop,C4960,Accesorios,2Q,800,28/04/2025,160,Historico,142,113600
+3,Monitores,D3005,Computo,2Q,4500,29/04/2025,320,Historico,300,1350000
+4,Teclados,A002,Accesorios,2Q,700,30/04/2025,210,Historico,202,141400
+5,Laptops,B001,Computo,1Q,12000,26/01/2025,400,Historico,375,5625000
+6,Audifonos,A002,Accesorios,1Q,1200,27/01/2025,580,Historico,547,656400
+7,Laptops,B001,Computo,4Q,15000,28/12/2025,720,Forecast,10,150000
+9,Mochilas Laptop,D3005,Accesorios,4Q,800,30/12/2025,1065,Forecast,20,16000
+10,Audifonos,C4960,Accesorios,4Q,1200,31/12/2025,1100,Forecast,5,62000
+12,Laptops,A002,Computo,2Q,15000,16/05/2025,1500,Historico,1417,21255000
+13,Mouse,B001,Accesorios,2Q,300,27/02/2025,1600,Historico,1572,471600
+18,Audifonos,A002,Accesorios,2Q,1200,01/05/2025,60,Historico,51,61200
+19,Laptops,B001,Computo,2Q,15000,18/05/2025,400,Historico,378,5670000
+20,Mouse,C4960,Accesorios,2Q,300,19/06/2025,180,Historico,171,51300
+21,Mochilas Laptop,D3005,Accesorios,2Q,800,20/05/2025,380,Historico,360,288000
