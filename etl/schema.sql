@@ -5,21 +5,22 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 1. products — catálogo maestro de productos
+-- 1. products — catálogo maestro de productos por tienda
+--    Un registro por par (item_id, shop_id).
 --    Tabla raíz: todas las demás tienen FK hacia aquí.
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS products (
     id         UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    item_id    VARCHAR(20)  NOT NULL UNIQUE,
+    item_id    VARCHAR(20)  NOT NULL,
     category   VARCHAR(100),
-    shop_id    VARCHAR(20),
-    active     BOOLEAN      NOT NULL DEFAULT TRUE
+    shop_id    VARCHAR(20)  NOT NULL,
+    active     BOOLEAN      NOT NULL DEFAULT TRUE,
+    UNIQUE (item_id, shop_id)
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 2. predictions — salida del modelo 
---    predicted_sales para Nov-2015 (date_block_num=34).
---    lower_bound / upper_bound son intervalos de confianza opcionales.
+-- 2. predictions — salida del modelo para Nov-2015 (date_block_num=34).
+--    predicted_sales, lower_bound y upper_bound en unidades mensuales (0-20).
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS predictions (
     id              UUID      PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -32,8 +33,8 @@ CREATE TABLE IF NOT EXISTS predictions (
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 3. actuals — ventas históricas reales (Ene-2013 a Oct-2015)
---    Se carga una fila por producto por mes.
+-- 3. actuals — ventas históricas reales (Oct-2015, mes 33).
+--    Una fila por par (product_id, sale_date).
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS actuals (
     id            UUID  PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -43,13 +44,13 @@ CREATE TABLE IF NOT EXISTS actuals (
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 4. evaluation_metrics — métricas de evaluación del modelo por grupo
---    group_key identifica el nivel de agregación (e.g. "item_id=X,shop_id=Y").
---    naive_rmse es el baseline de predicción constante para comparación.
+-- 4. evaluation_metrics — métricas de evaluación del modelo por grupo.
+--    product_id es NULL para métricas agregadas (global, category:X).
+--    group_key identifica el nivel: 'global' | 'category:N' | 'item:N,shop:M'
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS evaluation_metrics (
     id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    product_id  UUID         NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    product_id  UUID         REFERENCES products(id) ON DELETE CASCADE,
     group_key   VARCHAR(200) NOT NULL,
     rmse        FLOAT        NOT NULL,
     mae         FLOAT        NOT NULL,
@@ -57,7 +58,7 @@ CREATE TABLE IF NOT EXISTS evaluation_metrics (
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 5. business_feedback — retroalimentación del negocio sobre predicciones
+-- 5. business_feedback — retroalimentación del negocio sobre predicciones.
 --    sentiment: 'positivo' | 'negativo' | 'neutro'
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS business_feedback (
@@ -70,8 +71,7 @@ CREATE TABLE IF NOT EXISTS business_feedback (
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 6. flagged_products — productos marcados para revisión
---    Referencia tanto a products como a business_feedback.
+-- 6. flagged_products — productos marcados para revisión.
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS flagged_products (
     id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -83,14 +83,18 @@ CREATE TABLE IF NOT EXISTS flagged_products (
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- ÍNDICES — aceleran las queries más comunes de la app Streamlit
+-- ÍNDICES
 -- ─────────────────────────────────────────────────────────────────────────────
-CREATE INDEX IF NOT EXISTS idx_predictions_product_id  ON predictions(product_id);
-CREATE INDEX IF NOT EXISTS idx_predictions_date        ON predictions(prediction_date);
-CREATE INDEX IF NOT EXISTS idx_actuals_product_id      ON actuals(product_id);
-CREATE INDEX IF NOT EXISTS idx_actuals_date            ON actuals(sale_date);
-CREATE INDEX IF NOT EXISTS idx_eval_product_id         ON evaluation_metrics(product_id);
-CREATE INDEX IF NOT EXISTS idx_feedback_product_id     ON business_feedback(product_id);
-CREATE INDEX IF NOT EXISTS idx_feedback_sentiment      ON business_feedback(sentiment);
-CREATE INDEX IF NOT EXISTS idx_flagged_product_id      ON flagged_products(product_id);
-CREATE INDEX IF NOT EXISTS idx_flagged_resolved        ON flagged_products(resolved);
+CREATE INDEX IF NOT EXISTS idx_products_item       ON products(item_id);
+CREATE INDEX IF NOT EXISTS idx_products_shop       ON products(shop_id);
+CREATE INDEX IF NOT EXISTS idx_products_category   ON products(category);
+CREATE INDEX IF NOT EXISTS idx_predictions_product ON predictions(product_id);
+CREATE INDEX IF NOT EXISTS idx_predictions_date    ON predictions(prediction_date);
+CREATE INDEX IF NOT EXISTS idx_actuals_product     ON actuals(product_id);
+CREATE INDEX IF NOT EXISTS idx_actuals_date        ON actuals(sale_date);
+CREATE INDEX IF NOT EXISTS idx_eval_product        ON evaluation_metrics(product_id);
+CREATE INDEX IF NOT EXISTS idx_eval_group          ON evaluation_metrics(group_key);
+CREATE INDEX IF NOT EXISTS idx_feedback_product    ON business_feedback(product_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_sentiment  ON business_feedback(sentiment);
+CREATE INDEX IF NOT EXISTS idx_flagged_product     ON flagged_products(product_id);
+CREATE INDEX IF NOT EXISTS idx_flagged_resolved    ON flagged_products(resolved);
