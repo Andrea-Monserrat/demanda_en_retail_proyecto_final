@@ -436,9 +436,8 @@ aws ecr delete-repository --repository-name 1c-app --force
 
 | Herramienta | Para qué se usó | ¿Qué parte del proyecto? |
 |---|---|---|
-| *(declarar)* | *(ej: consulta de sintaxis de CloudFormation)* | *(ej: infra/cloudformation/ecs.yaml)* |
-| *(declarar)* | *(ej: generación de docstrings)* | *(ej: etl/load_predictions.py)* |
-| *(declarar)* | *(ej: revisión de estilo de README)* | *(ej: README.md)* |
+| **Claude (Anthropic)** | Adaptación de archivos y plantillas de clase al dominio de este proyecto | `infra/cloudformation/*.yaml`, `etl/schema.sql`, estructura del repo |
+| **Kimi (Moonshot AI)** | Redacción de documentación ejecutiva a partir de ideas y decisiones de diseño del equipo | `README.md`, `docs/reporte.md`, descripciones de arquitectura |
 
 > **Declaración del equipo:** El código de la aplicación Streamlit, los ETLs, los templates de CloudFormation y el diseño de la base de datos fueron escritos manualmente por el equipo. Las herramientas de IA se utilizaron exclusivamente para consultas puntuales de sintaxis, revisión de estilo de documentación y optimización de expresiones regulares. Todo el código de lógica de negocio, feature engineering y arquitectura de infraestructura es producto original del equipo.
 
