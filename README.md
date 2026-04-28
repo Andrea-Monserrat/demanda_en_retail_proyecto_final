@@ -30,7 +30,7 @@ En este MVP demostramos:
 
 ## 🏗️ Arquitectura
 
-![Diagrama de arquitectura](diagramas/arquitectura.drawio.png)
+![Diagrama de arquitectura](diagramas/arquitectura-ejecutiva.drawio.png)
 
 **Servicios AWS utilizados:** S3 · ECR · ECS Fargate · ALB · RDS PostgreSQL · Secrets Manager · Glue Data Catalog · CloudFormation
 

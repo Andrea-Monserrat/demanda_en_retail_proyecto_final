@@ -37,7 +37,7 @@ Demostrar al consejo directivo que es posible convertir los datos transaccionale
 
 ### 2.1 Diagrama de arquitectura
 
-![Diagrama de arquitectura](../diagramas/arquitectura.drawio.png)
+![Diagrama de arquitectura](../diagramas/arquitectura-ejecutiva.drawio.png)
 
 ### 2.2 Componentes y justificación de diseño
 
