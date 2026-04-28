@@ -18,3 +18,9 @@ venv/
 # IDE
 .vscode/
 .idea/
+
+# notas personales
+Pau.md
+
+#diagramas
+*.drawio

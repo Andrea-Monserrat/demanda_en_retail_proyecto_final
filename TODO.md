@@ -26,8 +26,7 @@ demanda_en_retail_proyecto_final/
 ├── infra/                        ← Paulina
 │   ├── cloudformation/
 │   │   ├── rds.yaml
-│   │   ├── ecs.yaml
-│   │   └── main.yaml             (stack maestro que llama a los demás)
+│   │   └── ecs.yaml
 │   └── secrets/
 │       └── setup_secrets.sh      (script para crear secret en Secrets Manager)
 │
@@ -172,15 +171,10 @@ Usar los templates de clase como base. Crear:
   - IAM Role con permisos: `secretsmanager:GetSecretValue`, `s3:GetObject`
   - Application Load Balancer → URL pública (port 8501 de Streamlit)
 
-- [ ] `infra/cloudformation/main.yaml`
-  - Stack maestro que hace nested stacks de rds.yaml y ecs.yaml
-
-Deploy:
+Deploy (dos ejecuciones separadas, sin stack maestro):
 ```bash
-aws cloudformation deploy \
-  --template-file infra/cloudformation/main.yaml \
-  --stack-name 1c-company-poc \
-  --capabilities CAPABILITY_IAM
+aws cloudformation deploy --template-file infra/cloudformation/rds.yaml --stack-name 1c-rds --capabilities CAPABILITY_IAM
+aws cloudformation deploy --template-file infra/cloudformation/ecs.yaml --stack-name 1c-ecs --capabilities CAPABILITY_IAM
 ```
 
 ---
