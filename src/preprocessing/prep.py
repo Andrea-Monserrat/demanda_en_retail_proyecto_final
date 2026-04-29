@@ -369,6 +369,7 @@ def build_matrix(raw_dir: Path) -> tuple[pd.DataFrame, list[str], MetaDict, pd.D
 
     #features base + tipado
     tbl_matrix = _codificar_features_base(tbl_matrix, items)
+    #print("DEBUG columnas:", tbl_matrix.columns.tolist())
 
     #lags (rezagos) y promedios por grupo (lag 1)
     tbl_matrix = _eliminar_lags_previos(tbl_matrix)
