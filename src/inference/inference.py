@@ -13,14 +13,14 @@ Salida:
 import argparse
 import json
 import time
-from pathlib import Path
 from typing import Any
-
-import joblib
+from pathlib import Path
 import numpy as np
 import pandas as pd
 
 from utils.logging_config import get_logger
+
+from utils.input_output import read_parquet,write_parquet, read_text, read_csv,read_joblib, path_exists
 
 # Logger estándar del proyecto
 logger = get_logger("inference")
@@ -42,70 +42,65 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _validar_archivo_existe(ruta: Path) -> None:
-    """Valida que un archivo exista (falla temprano y con contexto)."""
-    if not ruta.exists():
-        logger.error(
-            "action=validate_inputs status=failure missing_file=%s",
-            ruta.name,
-        )
+def _validar_archivo_existe(ruta: str) -> None:
+    if not path_exists(ruta):
+        logger.error("action=validate_inputs status=failure missing_file=%s", ruta)
         raise FileNotFoundError(ruta)
 
-
 def _cargar_modelo_y_columnas(
-    dir_modelos: Path, nombre_modelo: str
+    dir_modelos: str, nombre_modelo: str
 ) -> tuple[Any, list[str]]:
     """Carga el modelo entrenado y la lista de columnas (features) esperadas."""
     # Archivos de salida del entrenamiento
-    ruta_modelo = dir_modelos / nombre_modelo
-    ruta_columnas = dir_modelos / "feature_cols.json"
+    ruta_modelo = f"{dir_modelos}/{nombre_modelo}"
+    ruta_columnas = f"{dir_modelos}/feature_cols.json"
 
     _validar_archivo_existe(ruta_modelo)
     _validar_archivo_existe(ruta_columnas)
 
     # joblib para modelos sklearn
-    modelo = joblib.load(ruta_modelo)
+    modelo = read_joblib(ruta_modelo)
     # Las features deben coincidir exactamente con train.py
-    columnas_features = json.loads(ruta_columnas.read_text(encoding="utf-8"))
+    columnas_features = json.loads(read_text(ruta_columnas))
 
     logger.info(
         "action=load_model status=success model_file=%s n_features=%s",
-        ruta_modelo.name,
+        ruta_modelo,
         len(columnas_features),
     )
     return modelo, columnas_features
 
 
-def _cargar_test_csv(dir_inferencia: Path) -> pd.DataFrame:
+def _cargar_test_csv(dir_inferencia: str) -> pd.DataFrame:
     """Carga test.csv, que contiene shop_id/item_id y (a veces) el ID de Kaggle."""
-    ruta_test = dir_inferencia / "test.csv"
+    ruta_test = f"{dir_inferencia}/test.csv"
     _validar_archivo_existe(ruta_test)
 
-    datos_test = pd.read_csv(ruta_test, encoding="utf-8", low_memory=False)
+    datos_test = read_csv(ruta_test)
     logger.info(
         "action=load_test status=success test_rows=%s",
         f"{len(datos_test):,}",
     )
     return datos_test
 
-def _cargar_filas_test(prep_dir: Path) -> tuple[pd.DataFrame, int]:
+def _cargar_filas_test(prep_dir: str) -> tuple[pd.DataFrame, int]:
     """Carga matrix.parquet y filtra únicamente las filas del mes de test."""
-    ruta_matrix = prep_dir / "matrix.parquet"
-    ruta_meta = prep_dir / "meta.json"
+    ruta_matrix = f"{prep_dir}/matrix.parquet"
+    ruta_meta = f"{prep_dir}/meta.json"
 
     _validar_archivo_existe(ruta_matrix)
     _validar_archivo_existe(ruta_meta)
 
-    meta = json.loads(ruta_meta.read_text(encoding="utf-8"))
+    meta = json.loads(read_text(ruta_meta))
     test_month = int(meta["test_month"])
 
     logger.info(
         "action=read_matrix status=started file=%s test_month=%s",
-        ruta_matrix.name,
+        ruta_matrix,
         test_month,
     )
 
-    matrix = pd.read_parquet(ruta_matrix)
+    matrix = read_parquet(ruta_matrix)
 
     filas_test = matrix.loc[matrix["date_block_num"] == test_month].copy()
 
@@ -171,8 +166,8 @@ def _predecir(modelo: Any, x_test: pd.DataFrame) -> np.ndarray:
 
 
 def _guardar_salida(
-    datos_test: pd.DataFrame, filas_test: pd.DataFrame, preds: np.ndarray, dir_pred: Path
-) -> Path:
+    datos_test: pd.DataFrame, filas_test: pd.DataFrame, preds: np.ndarray, dir_pred: str
+) -> str:
     """Une predicciones con el test original y escribe predictions.csv."""
     # Construimos tabla mínima para merge por shop_id/item_id
     tabla_pred = filas_test[["shop_id", "item_id"]].copy()
@@ -181,12 +176,12 @@ def _guardar_salida(
     # Merge para respetar el orden/IDs del test original
     salida = datos_test.merge(tabla_pred, on=["shop_id", "item_id"], how="left")
 
-    ruta_salida = dir_pred / "predictions.parquet"
-    salida.to_parquet(ruta_salida, index=False)
+    ruta_salida = f"{dir_pred}/predictions.parquet"
+    write_parquet(salida, ruta_salida)
 
     logger.info(
         "action=save status=success output_file=%s rows_out=%s",
-        ruta_salida.name,
+        ruta_salida,
         f"{len(salida):,}",
     )
     return ruta_salida
@@ -200,11 +195,12 @@ def main() -> None:
     logger.info("action=inference status=started")
 
     # Directorios de entrada/salida
-    dir_inferencia = Path(args.inference_dir)
-    dir_modelos = Path(args.models_dir)
-    prep_dir = Path(args.prep_dir)
-    dir_pred = Path(args.pred_dir)
-    dir_pred.mkdir(parents=True, exist_ok=True)
+    dir_inferencia = args.inference_dir
+    dir_modelos = args.models_dir
+    prep_dir = args.prep_dir
+    dir_pred = args.pred_dir
+    if not dir_pred.startswith("s3://"):
+        Path(dir_pred).mkdir(parents=True, exist_ok=True)
 
     try:
         # 1) Cargar modelo y lista de features
@@ -231,7 +227,7 @@ def main() -> None:
         duracion = time.time() - inicio
         logger.info(
             "action=inference status=success output_file=%s duration_seconds=%.2f",
-            ruta_salida.name,
+            ruta_salida,
             duracion,
         )
 
