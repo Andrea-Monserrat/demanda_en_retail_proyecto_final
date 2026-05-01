@@ -7,7 +7,9 @@ RUN pip install --no-cache-dir \
     numpy==2.4.2 \
     pandas==3.0.1 \
     scikit-learn==1.8.0 \
-    pyarrow
+    pyarrow  \
+    awswrangler  \
+    boto3
 
 # Directorio de trabajo dentro del contenedor
 WORKDIR /app

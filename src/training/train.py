@@ -33,6 +33,8 @@ from sklearn.linear_model import PoissonRegressor, Ridge
 from sklearn.metrics import mean_squared_error
 
 from utils.logging_config import get_logger
+from utils.input_output import read_parquet, read_text, path_exists, write_text, write_joblib
+
 
 logger = get_logger("train")
 
@@ -90,43 +92,49 @@ def parse_train_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _validar_archivo_existe(ruta: Path) -> None:
-    """Valida existencia de un archivo para fallar temprano con contexto."""
-    if not ruta.exists():
-        logger.error("action=validate_inputs status=failure missing_file=%s", ruta.name)
+def _validar_archivo_existe(ruta: str) -> None:
+    """Valida existencia de archivo local o S3."""
+    if not path_exists(ruta):
+        logger.error(
+            "action=validate_inputs status=failure missing_file=%s",
+            ruta,
+        )
         raise FileNotFoundError(ruta)
 
 
 def _cargar_inputs_prep(
-    prep_dir: Path,
+    prep_dir: str,
 ) -> tuple[pd.DataFrame, list[str], dict[str, Any]]:
     """Carga matrix, feature_cols y meta generados por prep.py."""
-    ruta_matrix = prep_dir / "matrix.parquet"
-    ruta_feature_cols = prep_dir / "feature_cols.json"
-    ruta_meta = prep_dir / "meta.json"
+    ruta_matrix = f"{prep_dir}/matrix.parquet"
+    ruta_feature_cols = f"{prep_dir}/feature_cols.json"
+    ruta_meta = f"{prep_dir}/meta.json"
 
     _validar_archivo_existe(ruta_matrix)
     _validar_archivo_existe(ruta_feature_cols)
     _validar_archivo_existe(ruta_meta)
 
     logger.info("action=read_matrix status=started file=%s", ruta_matrix)
-    matrix = pd.read_parquet(ruta_matrix)
-    logger.info("action=read_matrix status=success rows=%s cols=%s", 
-                len(matrix), 
-                len(matrix.columns))
-
-    feature_cols = json.loads(ruta_feature_cols.read_text(encoding="utf-8"))
-    meta = json.loads(ruta_meta.read_text(encoding="utf-8"))
+    matrix = read_parquet(ruta_matrix)
 
     logger.info(
-        "action=load_prep status=success matrix_rows=%s n_features=%s "
-        "files=(%s,%s,%s)",
+        "action=read_matrix status=success rows=%s cols=%s",
+        len(matrix),
+        len(matrix.columns),
+    )
+
+    feature_cols = json.loads(read_text(ruta_feature_cols))
+    meta = json.loads(read_text(ruta_meta))
+
+    logger.info(
+        "action=load_prep status=success matrix_rows=%s n_features=%s files=(%s,%s,%s)",
         f"{len(matrix):,}",
         f"{len(feature_cols):,}",
-        ruta_matrix.name,
-        ruta_feature_cols.name,
-        ruta_meta.name,
+        ruta_matrix,
+        ruta_feature_cols,
+        ruta_meta,
     )
+
     return matrix, feature_cols, meta
 
 
@@ -318,28 +326,27 @@ def _construir_reporte(
 
 
 def _guardar_artefactos(
-    models_dir: Path,
+    models_dir: str,
     model_file: str,
     modelo_final: Any,
     report: dict[str, Any],
     feature_cols: list[str],
 ) -> None:
     """Guarda modelo y reportes en artifacts/models."""
-    models_dir.mkdir(parents=True, exist_ok=True)
 
-    ruta_modelo = models_dir / model_file
-    ruta_report = models_dir / "train_report.json"
-    ruta_cols = models_dir / "feature_cols.json"
+    ruta_modelo = f"{models_dir}/{model_file}"
+    ruta_report = f"{models_dir}/train_report.json"
+    ruta_cols = f"{models_dir}/feature_cols.json"
 
-    joblib.dump(modelo_final, ruta_modelo)
-    ruta_report.write_text(json.dumps(report, indent=2), encoding="utf-8")
-    ruta_cols.write_text(json.dumps(feature_cols, indent=2), encoding="utf-8")
+    write_joblib(modelo_final, ruta_modelo)
+    write_text(json.dumps(report, indent=2), ruta_report)
+    write_text(json.dumps(feature_cols, indent=2), ruta_cols)
 
     logger.info(
         "action=save status=success saved_model=%s saved_report=%s saved_feature_cols=%s",
-        ruta_modelo.name,
-        ruta_report.name,
-        ruta_cols.name,
+        ruta_modelo,
+        ruta_report,
+        ruta_cols,
     )
 
 
@@ -404,8 +411,8 @@ def main() -> None:
 
     logger.info("action=train status=started")
 
-    prep_dir = Path(args.prep_dir)
-    models_dir = Path(args.models_dir)
+    prep_dir = args.prep_dir
+    models_dir = args.models_dir
 
     try:
         _ejecutar_entrenamiento(
