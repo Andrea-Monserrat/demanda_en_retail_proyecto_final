@@ -492,8 +492,9 @@ def main() -> None:
         raise
 
     # Guardar matriz comprimida
-    out_matrix = prep_dir / "matrix.csv.gz"
-    matrix.to_csv(out_matrix, index=False, compression="gzip")
+    out_matrix = prep_dir / "matrix.parquet"#"matrix.csv.gz"
+    matrix.to_parquet(out_matrix, index=False, compression="snappy")
+    #matrix.to_csv(out_matrix, index=False, compression="gzip")
 
     # Artefactos de apoyo: columnas, meta y pares del test
     (prep_dir / "feature_cols.json").write_text(
