@@ -26,6 +26,7 @@ import numpy as np
 import pandas as pd
 
 from utils.logging_config import get_logger
+from utils.input_output import write_parquet, write_text, write_csv, read_csv
 
 logger = get_logger("prep")
 
@@ -151,15 +152,10 @@ def add_group_mean_lag(
 
 def _cargar_datos_raw(raw_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Carga los CSVs base desde data/raw."""
-    item_categories = pd.read_csv(
-        raw_dir / "item_categories.csv", encoding="utf-8", low_memory=False
-    )
-    items = pd.read_csv(raw_dir / "items.csv", encoding="utf-8", low_memory=False)
-    sales_train = pd.read_csv(
-        raw_dir / "sales_train.csv", encoding="utf-8", low_memory=False
-    )
-    test = pd.read_csv(raw_dir / "test.csv", encoding="utf-8", low_memory=False)
-
+    item_categories = read_csv(f"{raw_dir}/item_categories.csv")
+    items = read_csv(f"{raw_dir}/items.csv")
+    sales_train = read_csv(f"{raw_dir}/sales_train.csv")
+    test = read_csv(f"{raw_dir}/test.csv")
     logger.info(
         "action=load_data status=success rows_item_categories=%s rows_items=%s rows_sales_train=%s rows_test=%s",
         f"{len(item_categories):,}",
@@ -476,9 +472,10 @@ def main() -> None:
 
     logger.info("action=prep status=started")
 
-    raw_dir = Path(args.raw_dir)
-    prep_dir = Path(args.prep_dir)
-    prep_dir.mkdir(parents=True, exist_ok=True)
+    raw_dir = args.raw_dir
+    prep_dir = args.prep_dir
+    if not prep_dir.startswith("s3://"):
+        Path(prep_dir).mkdir(parents=True, exist_ok=True)
 
     try:
         matrix, feature_cols, meta, test_pairs_with_id = build_matrix(raw_dir)
@@ -491,26 +488,20 @@ def main() -> None:
         )
         raise
 
-    # Guardar matriz comprimida
-    out_matrix = prep_dir / "matrix.parquet"#"matrix.csv.gz"
-    matrix.to_parquet(out_matrix, index=False, compression="snappy")
-    #matrix.to_csv(out_matrix, index=False, compression="gzip")
+    # Guardar matriz 
+    out_matrix = f"{prep_dir}/matrix.parquet"
+    write_parquet(matrix, out_matrix)
+    #matrix.to_parquet(out_matrix, index=False, compression="snappy")
 
     # Artefactos de apoyo: columnas, meta y pares del test
-    (prep_dir / "feature_cols.json").write_text(
-        json.dumps(feature_cols, indent=2),
-        encoding="utf-8",
-    )
-    (prep_dir / "meta.json").write_text(
-        json.dumps(meta, indent=2),
-        encoding="utf-8",
-    )
-    test_pairs_with_id.to_csv(prep_dir / "test_pairs.csv", index=False)
+    write_text(json.dumps(feature_cols, indent=2), f"{prep_dir}/feature_cols.json")
+    write_text(json.dumps(meta, indent=2), f"{prep_dir}/meta.json")
+    write_csv(test_pairs_with_id, f"{prep_dir}/test_pairs.csv")
 
     duration = time.time() - start_time
     logger.info(
         "action=prep status=success matrix_file=%s duration_seconds=%.2f",
-        out_matrix.name,
+        out_matrix,
         duration,
     )
 

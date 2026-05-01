@@ -5,7 +5,9 @@ FROM python:3.12-slim
 RUN pip install --no-cache-dir \
     numpy==2.2.4 \
     pandas==3.0.1 \
-    pyarrow
+    pyarrow  \
+    awswrangler  \
+    boto3
 
 # Directorio de trabajo dentro del contenedor
 WORKDIR /app
