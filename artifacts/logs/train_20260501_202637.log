@@ -1,0 +1,2 @@
+2026-05-01T20:26:37+0000 - dc27c1dc77dd - train - INFO - action=train status=started
+2026-05-01T20:26:37+0000 - dc27c1dc77dd - train - INFO - action=read_matrix status=started file=data/prep/matrix.csv.gz
