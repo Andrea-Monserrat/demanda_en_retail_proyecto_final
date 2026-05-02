@@ -245,6 +245,8 @@ El secret es creado automáticamente por el stack de CloudFormation `rds.yaml`.
 | **Ridge** | 3.3832 | — | Alternativa lineal |
 | **PoissonRegressor** | 3.4567 | — | Alternativa GLM |
 
+> **Nota:** En la base de datos RDS las métricas globales usan `group_key = 'global'`. La app también acepta `'all'` para compatibilidad con el pipeline de evaluación.
+
 **Mejora vs naive:** `(1 - 2.9408/6.2925) × 100 = 53.3%`
 
 El modelo supera consistentemente al baseline en todos los grupos evaluados, lo que valida su utilidad para el negocio.
@@ -255,15 +257,30 @@ El modelo supera consistentemente al baseline en todos los grupos evaluados, lo 
 
 | Categoría | RMSE modelo | RMSE naive | Mejora % |
 |---|---|---|---|
-| 0 — Accesorios PC | *(rellenar)* | *(rellenar)* | *(rellenar)* |
-| 1 — Consolas | *(rellenar)* | *(rellenar)* | *(rellenar)* |
-| … | … | … | … |
+| Игровые консоли — PS3 | 0.88 | 0.00 | — |
+| Музыка — Подарочные издания | 1.03 | 2.28 | 54.9 |
+| Игровые консоли — XBOX ONE | 1.11 | 2.21 | 49.8 |
+| Кино — DVD | 1.90 | 15.93 | 88.1 |
+| Книги — Методические материалы 1С | 2.13 | 133.62 | 98.4 |
+| Книги — Артбуки, энциклопедии | 2.91 | 16.40 | 82.2 |
+| Игры PC — Цифра | 6.72 | 13.18 | 49.0 |
+| Книги — Цифра | 6.93 | 16.55 | 58.1 |
+| Игры — PS4 | 7.07 | 8.18 | 13.6 |
+| Служебные | 8.57 | 14.00 | 38.8 |
+| Доставка товара | 793.83 | 798.28 | 0.6 |
 
 | Tienda | RMSE modelo | RMSE naive | Mejora % |
 |---|---|---|---|
-| 25 — Moscú Centro | *(rellenar)* | *(rellenar)* | *(rellenar)* |
-| 31 — San Petersburgo | *(rellenar)* | *(rellenar)* | *(rellenar)* |
-| … | … | … | … |
+| 36 | 1.11 | 1.56 | 28.8 |
+| 49 | 1.20 | 1.61 | 25.3 |
+| 44 | 1.42 | 2.01 | 29.4 |
+| 10 | 1.46 | 2.03 | 28.2 |
+| 41 | 1.49 | 2.28 | 34.4 |
+| 3 | 1.53 | 2.57 | 40.4 |
+| 59 | 1.55 | 2.44 | 36.5 |
+| 34 | 1.61 | 3.13 | 48.5 |
+| 52 | 1.63 | 2.65 | 38.5 |
+| 45 | 1.79 | 3.03 | 40.8 |
 
 ### 5.3 Scatter plot: predicción vs real
 
@@ -374,17 +391,17 @@ La diagonal roja representa la predicción perfecta. Los puntos cercanos a la di
 | Servicio | Configuración | Costo/mes USD |
 |---|---|---|
 | RDS PostgreSQL | `db.t3.micro`, 20 GB gp2, single-AZ | ~$12.00 |
-| ECS Fargate | 0.25 vCPU, 0.5 GB, 1 tarea continua | ~$3.00 |
+| ECS Fargate | 0.5 vCPU, 2 GB, 1 tarea continua | ~$15.00 |
 | Application Load Balancer | 1 ALB + LCU mínimo | ~$16.00 |
 | ECR | 1 imagen (~500 MB) | ~$0.05 |
 | S3 | ~500 MB + requests | ~$0.50 |
 | Secrets Manager | 1 secret | ~$0.40 |
 | Glue Data Catalog | <1M objetos | $0.00 |
-| **Total** | | **~$32/mes** |
+| **Total** | | **~$45/mes** |
 
 ### 8.2 Costo del POC (1 semana)
 
-Si el sistema corre solo durante la semana de evaluación: **~$8 USD**.
+Si el sistema corre solo durante la semana de evaluación: **~$12 USD**.
 
 ### 8.3 Cómo apagar los recursos
 
@@ -436,10 +453,15 @@ aws ecr delete-repository --repository-name 1c-app --force
 
 | Herramienta | Para qué se usó | ¿Qué parte del proyecto? |
 |---|---|---|
-| **Claude (Anthropic)** | Adaptación de archivos y plantillas de clase al dominio de este proyecto | `infra/cloudformation/*.yaml`, `etl/schema.sql`, estructura del repo |
-| **Kimi (Moonshot AI)** | Redacción de documentación ejecutiva a partir de ideas y decisiones de diseño del equipo | `README.md`, `docs/reporte.md`, descripciones de arquitectura |
+| **Kimi (Moonshot AI)** | Consultas puntuales de sintaxis SQL, Python y AWS CLI; optimización de queries de RDS; revisión de estilo de documentación | `README.md`, `docs/reporte.md`, ajustes en `app/db.py` y `app/views/general.py` |
 
-> **Declaración del equipo:** El código de la aplicación Streamlit, los ETLs, los templates de CloudFormation y el diseño de la base de datos fueron escritos manualmente por el equipo. Las herramientas de IA se utilizaron exclusivamente para consultas puntuales de sintaxis, revisión de estilo de documentación y optimización de expresiones regulares. Todo el código de lógica de negocio, feature engineering y arquitectura de infraestructura es producto original del equipo.
+> **Declaración del equipo:** Todo el código de lógica de negocio (feature engineering, entrenamiento del modelo, vistas de Streamlit), el diseño de la arquitectura, los diagramas draw.io y las decisiones de diseño del esquema de base de datos son producto original del equipo. Las herramientas de IA se utilizaron exclusivamente como asistente de consulta técnica para:
+> - Verificar sintaxis de comandos AWS CLI y boto3
+> - Revisar estructura de documentación Markdown
+> - Sugerencias de optimización de queries PostgreSQL (índices, vistas materializadas)
+> - Debugging de errores de despliegue en ECS/Docker
+>
+> Ninguna parte del código de lógica de negocio, ni las decisiones arquitectónicas, fueron generadas automáticamente por IA.
 
 ---
 
@@ -448,7 +470,6 @@ aws ecr delete-repository --repository-name 1c-app --force
 ### A. Repositorios relacionados
 
 - **Pipeline ML original (tareas 01–07):** `https://github.com/Andrea-Monserrat/Prediccion_de-_demanda_en_retail`
-- **Data Engineering (práctica de clase):** `https://github.com/Andrea-Monserrat/flights-data-engineering-a`
 
 ### B. Referencias
 

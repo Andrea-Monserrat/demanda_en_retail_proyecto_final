@@ -2,7 +2,7 @@
 
 > **POC de Machine Learning en producción** para el pronóstico mensual de demanda a nivel producto–tienda, desplegado como aplicación Streamlit en AWS con URL pública.
 
-🔗 **URL de la app:** `http://<ALB-DNS>/` *(actualizar tras deploy)*  
+🔗 **URL de la app:** `http://1c-retail-app-alb-154966582.us-east-1.elb.amazonaws.com`  
 📹 **Video demo:** *(enlace a subir)*
 
 ---
@@ -208,14 +208,15 @@ bash infra/scripts/build_and_push.sh
 | Componente | Configuración | ~Costo/mes |
 |---|---|---|
 | RDS PostgreSQL | `db.t3.micro`, 20 GB, single-AZ | ~$12 |
-| ECS Fargate | 0.25 vCPU / 0.5 GB, 1 tarea | ~$3 |
+| ECS Fargate | 0.5 vCPU / 2 GB, 1 tarea | ~$15 |
 | Application Load Balancer | 1 ALB | ~$16 |
 | ECR | 1 imagen (~500 MB) | <$1 |
 | S3 | ~500 MB (datos + modelo) | <$1 |
 | Secrets Manager | 1 secret | ~$0.40 |
-| **Total aproximado** | | **~$33/mes** |
+| Glue Data Catalog | 1 database | $0.00 |
+| **Total aproximado** | | **~$45/mes** |
 
-Para el POC (1 semana de evaluación): **~$8 USD**.
+Para el POC (1 semana de evaluación): **~$12 USD**.
 
 ---
 
