@@ -1,0 +1,7 @@
+.git
+.gitignore
+infra/
+diagramas/
+**/__pycache__
+**/*.pyc
+**/.DS_Store

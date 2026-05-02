@@ -1,0 +1,25 @@
+# Referencias de clase — no forman parte del producto
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# notas personales
+Pau.md
+
+#diagramas
+*.drawio
