@@ -1,0 +1,11 @@
+feedback_id,fecha_feedback,usuario,item_category_id,item_category_name,tienda,categoria,temporada,tipo_problema,severidad,observacion,estado
+1,2025-05-10 09:15:00,analista_1,0,Laptops,A002,Computo,2Q,Forecast sobreestimado,Alta,El forecast es muy alto comparado con ventas reales recientes,Pendiente de análisis ML
+2,2025-05-10 10:30:00,analista_2,1,Mouse,B001,Accesorios,2Q,Forecast subestimado,Media,Alta demanda por promoción no considerada,Pendiente de análisis ML
+3,2025-05-11 11:00:00,analista_3,3,Monitores,D3005,Computo,2Q,Producto sin stock,Alta,Inventario agotado afectando ventas reales,Pendiente de análisis ML
+4,2025-05-11 12:45:00,analista_1,2,Mochilas Laptop,C4960,Accesorios,2Q,Cambio de precio,Media,Se incrementó precio sin actualizar modelo,Pendiente de análisis ML
+5,2025-05-12 09:20:00,analista_4,4,Teclados,A002,Accesorios,2Q,Error de datos,Alta,Datos de ventas incorrectos en sistema fuente,Pendiente de análisis ML
+6,2025-05-12 14:10:00,analista_2,6,Audifonos,A002,Accesorios,1Q,Promoción no considerada,Media,Campaña activa no incluida en forecast,Pendiente de análisis ML
+7,2025-05-13 10:05:00,analista_3,0,Laptops,B001,Computo,4Q,Forecast sobreestimado,Alta,Temporada baja pero forecast sigue alto,Pendiente de análisis ML
+8,2025-05-13 15:30:00,analista_1,8,Audifonos,C4960,Accesorios,4Q,Producto descontinuado,Alta,Producto ya no se vende pero sigue en modelo,Pendiente de análisis ML
+9,2025-05-14 11:40:00,analista_5,3,Monitores,D3005,Computo,3Q,Forecast subestimado,Baja,Incremento leve en demanda no capturado,Pendiente de análisis ML
+10,2025-05-14 16:20:00,analista_2,1,Mouse,C4960,Accesorios,2Q,Otro,Media,Comportamiento irregular en ventas sin causa clara,Pendiente de análisis ML
