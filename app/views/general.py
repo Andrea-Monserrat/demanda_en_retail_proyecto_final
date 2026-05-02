@@ -3,12 +3,12 @@ import streamlit as st
 import plotly.express as px
 import numpy as np
 
+from data_loader import cargar_evaluation_metrics
 
 
 def mostrar_vista_general(df: pd.DataFrame) -> None:
     st.header("Análisis general")
     st.write("Vista ejecutiva del pronóstico mensual de demanda.")
-
 
     if df.empty:
         st.warning("No hay datos disponibles para mostrar.")
@@ -29,23 +29,81 @@ def mostrar_vista_general(df: pd.DataFrame) -> None:
 
     df_pred["forecast"] = pd.to_numeric(df_pred["forecast"], errors="coerce").fillna(0)
 
+    # ── Métricas reales desde RDS ───────────────────────────────────────────
+    df_metrics = cargar_evaluation_metrics()
+    if not df_metrics.empty:
+        st.subheader("Evaluación del modelo vs baseline naive")
 
-    if "actual" in df_pred.columns:
-        st.subheader("Evaluación del modelo simulada")
+        # KPI global
+        global_row = df_metrics[df_metrics["group_key"] == "all"]
+        if not global_row.empty:
+            rmse_model = float(global_row["rmse"].iloc[0])
+            rmse_naive = float(global_row["naive_rmse"].iloc[0])
+            mejora = (rmse_naive - rmse_model) / rmse_naive if rmse_naive > 0 else 0
 
-        df_eval = df_pred.copy()
-        df_eval["actual"] = pd.to_numeric(df_eval["actual"], errors="coerce").fillna(0)
+            col1, col2, col3 = st.columns(3)
+            col1.metric("RMSE modelo", f"{rmse_model:.4f}")
+            col2.metric("RMSE naive", f"{rmse_naive:.4f}")
+            col3.metric("Mejora vs naive", f"{mejora:.2%}")
+        else:
+            st.info("Métricas globales aún no calculadas.")
 
-        df_eval["error_abs"] = (df_eval["actual"] - df_eval["forecast"]).abs()
-        df_eval["error_pct"] = df_eval["error_abs"] / df_eval["actual"].replace(0, np.nan)
-        df_eval["sesgo"] = df_eval["forecast"] - df_eval["actual"]
+        # Tabla por categoría
+        df_cat = df_metrics[df_metrics["group_key"].str.startswith("category:")].copy()
+        if not df_cat.empty:
+            df_cat["category"] = df_cat["group_key"].str.replace("category:", "", regex=False)
+            df_cat["rmse_model"] = df_cat["rmse"].astype(float)
+            df_cat["rmse_naive"] = df_cat["naive_rmse"].astype(float)
+            df_cat["mejora"] = (df_cat["rmse_naive"] - df_cat["rmse_model"]) / df_cat["rmse_naive"]
+            df_cat = df_cat.sort_values("mejora", ascending=False)
 
-        mae = df_eval["error_abs"].mean()
-        mape = df_eval["error_pct"].mean()
+            st.subheader("RMSE por categoría")
+            st.dataframe(
+                df_cat[["category", "rmse_model", "rmse_naive", "mejora"]].style.format({
+                    "rmse_model": "{:.4f}",
+                    "rmse_naive": "{:.4f}",
+                    "mejora": "{:.2%}",
+                }),
+                width="stretch",
+            )
 
-        col1, col2 = st.columns(2)
-        col1.metric("MAE", f"{mae:,.2f}")
-        col2.metric("MAPE", f"{mape:.2%}")
+        # Tabla por tienda
+        df_shop = df_metrics[df_metrics["group_key"].str.startswith("shop:")].copy()
+        if not df_shop.empty:
+            df_shop["shop"] = df_shop["group_key"].str.replace("shop:", "", regex=False)
+            df_shop["rmse_model"] = df_shop["rmse"].astype(float)
+            df_shop["rmse_naive"] = df_shop["naive_rmse"].astype(float)
+            df_shop["mejora"] = (df_shop["rmse_naive"] - df_shop["rmse_model"]) / df_shop["rmse_naive"]
+            df_shop = df_shop.sort_values("mejora", ascending=False)
+
+            st.subheader("RMSE por tienda")
+            st.dataframe(
+                df_shop[["shop", "rmse_model", "rmse_naive", "mejora"]].style.format({
+                    "rmse_model": "{:.4f}",
+                    "rmse_naive": "{:.4f}",
+                    "mejora": "{:.2%}",
+                }),
+                width="stretch",
+            )
+    else:
+        st.info("Métricas de evaluación no disponibles en RDS.")
+
+    # ── Evaluación con actuals (si existen) ─────────────────────────────────
+    if "actual" in df_pred.columns and df_pred["actual"].notna().any():
+        st.subheader("Scatter: predicción vs actual")
+        df_eval = df_pred[df_pred["actual"] > 0].copy()
+        fig = px.scatter(
+            df_eval,
+            x="actual",
+            y="forecast",
+            color="item_category_name" if "item_category_name" in df_eval.columns else None,
+            opacity=0.6,
+            title="Forecast vs Actual",
+        )
+        max_val = max(df_eval["actual"].max(), df_eval["forecast"].max())
+        fig.add_shape(type="line", x0=0, y0=0, x1=max_val, y1=max_val,
+                      line=dict(color="red", dash="dash"))
+        st.plotly_chart(fig, width="stretch")
 
     total_predicho = df_pred["forecast"].sum()
     forecast_promedio = df_pred["forecast"].mean()

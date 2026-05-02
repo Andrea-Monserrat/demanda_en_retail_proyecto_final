@@ -3,6 +3,18 @@ import streamlit as st
 import plotly.express as px
 from datetime import datetime
 
+from db import query, execute_returning_id
+from data_loader import cargar_feedback_rds, cargar_flagged_rds
+
+
+def _buscar_product_id(item_id: int, shop_id: int) -> str | None:
+    """Busca el UUID de products en RDS por item_id + shop_id."""
+    rows = query(
+        "SELECT id FROM products WHERE item_id = %s AND shop_id = %s",
+        (str(item_id), str(shop_id)),
+    )
+    return rows[0]["id"] if rows else None
+
 
 def mostrar_vista_operativa(df: pd.DataFrame) -> None:
     st.header("Vista operativa")
@@ -54,6 +66,8 @@ def mostrar_vista_operativa(df: pd.DataFrame) -> None:
     )
 
     producto = df_productos[df_productos["producto_label"] == producto_label].iloc[0]
+    item_id = int(producto["item_id"])
+    shop_id = int(producto["shop_id"])
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Producto", str(producto[columna_producto]))
@@ -72,7 +86,7 @@ def mostrar_vista_operativa(df: pd.DataFrame) -> None:
     col5.metric("Forecast", f"{producto['forecast']:,.2f}")
 
     if pd.notna(producto["actual"]):
-        col6.metric("Venta real simulada", f"{producto['actual']:,.2f}")
+        col6.metric("Venta real", f"{producto['actual']:,.2f}")
     else:
         col6.metric("Venta real", "Sin dato")
 
@@ -104,78 +118,80 @@ def mostrar_vista_operativa(df: pd.DataFrame) -> None:
     )
 
     if st.button("Guardar feedback", key="operativa_guardar_feedback"):
-        nuevo_feedback = {
-            "feedback_id": len(st.session_state.get("feedback_operativo", [])) + 1,
-            "fecha_feedback": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "usuario": "usuario_demo",
-            "shop_id": producto["shop_id"],
-            "item_id": producto["item_id"],
-            "producto": str(producto[columna_producto]),
-            "tienda": str(producto[columna_tienda]),
-            "categoria": str(producto[columna_categoria]),
-            "temporada": temporada,
-            "forecast": float(producto["forecast"]),
-            "actual": None if pd.isna(producto["actual"]) else float(producto["actual"]),
-            "tipo_problema": tipo_problema,
-            "severidad": severidad,
-            "observacion": observacion,
-            "estado": "Pendiente de análisis ML",
-        }
+        product_id = _buscar_product_id(item_id, shop_id)
+        if not product_id:
+            st.error("No se encontró el producto en la base de datos RDS.")
+            return
 
-        if "feedback_operativo" not in st.session_state:
-            st.session_state["feedback_operativo"] = []
+        # Sentiment: negativo si severidad Alta, positivo si Baja, neutro si Media
+        sentiment = "neutro"
+        if severidad == "Alta":
+            sentiment = "negativo"
+        elif severidad == "Baja":
+            sentiment = "positivo"
 
-        st.session_state["feedback_operativo"].append(nuevo_feedback)
-        st.success("✅ Feedback guardado correctamente.")
+        # Observación enriquecida con metadatos
+        observacion_full = f"[{tipo_problema} | Severidad: {severidad}] {observacion}"
+
+        try:
+            feedback_id = execute_returning_id(
+                """
+                INSERT INTO business_feedback (product_id, sentiment, observation, created_by)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+                """,
+                (product_id, sentiment, observacion_full, "usuario_demo"),
+            )
+
+            if sentiment == "negativo" and feedback_id:
+                execute_returning_id(
+                    """
+                    INSERT INTO flagged_products (product_id, feedback_id, reason)
+                    VALUES (%s, %s, %s)
+                    RETURNING id
+                    """,
+                    (product_id, feedback_id, observacion_full[:500]),
+                )
+
+            st.success("Feedback guardado en RDS correctamente.")
+            st.cache_data.clear()  # Invalidar cache de feedback/flagged
+        except Exception as e:
+            st.error(f"Error al guardar en RDS: {e}")
 
     st.divider()
 
-    st.subheader("Productos identificados con problemas")
+    # ── Feedback histórico desde RDS ────────────────────────────────────────
+    st.subheader("Feedback registrado")
+    df_feedback = cargar_feedback_rds()
+    if not df_feedback.empty:
+        st.dataframe(df_feedback, width="stretch", use_container_width=True)
+    else:
+        st.info("Aún no hay feedback registrado en la base de datos.")
 
-    feedback_nuevo = st.session_state.get("feedback_operativo", [])
+    st.divider()
 
-    if not feedback_nuevo:
-        st.info("Aún no hay productos con feedback registrado en esta sesión.")
-        return
+    # ── Productos flagged (problemas sin resolver) ──────────────────────────
+    st.subheader("Productos con problemas identificados")
+    df_flagged = cargar_flagged_rds()
+    if not df_flagged.empty:
+        st.dataframe(df_flagged, width="stretch", use_container_width=True)
 
-    df_feedback = pd.DataFrame(feedback_nuevo)
-
-    columnas_feedback = [
-        "feedback_id",
-        "fecha_feedback",
-        "usuario",
-        "shop_id",
-        "item_id",
-        "producto",
-        "tienda",
-        "categoria",
-        "temporada",
-        "forecast",
-        "actual",
-        "tipo_problema",
-        "severidad",
-        "observacion",
-        "estado",
-    ]
-
-    st.dataframe(df_feedback[columnas_feedback], width="stretch")
-
-    st.subheader("Alertas por producto")
-
-    df_alertas = (
-        df_feedback
-        .groupby(["producto", "severidad"], as_index=False)
-        .size()
-        .rename(columns={"size": "cantidad_alertas"})
-    )
-
-    fig = px.bar(
-        df_alertas,
-        x="producto",
-        y="cantidad_alertas",
-        color="severidad",
-        title="Productos con feedback registrado",
-    )
-    fig.update_xaxes(tickangle=45)
-
-    st.plotly_chart(fig, width="stretch")
+        st.subheader("Alertas por severidad")
+        # Contamos por shop_id como proxy (o podríamos enriquecer con categoría)
+        df_alertas = (
+            df_flagged.groupby("shop_id", as_index=False)
+            .size()
+            .rename(columns={"size": "cantidad_alertas"})
+            .sort_values("cantidad_alertas", ascending=False)
+            .head(20)
+        )
+        fig = px.bar(
+            df_alertas,
+            x="shop_id",
+            y="cantidad_alertas",
+            title="Productos flagged por tienda",
+        )
+        fig.update_xaxes(tickangle=45)
+        st.plotly_chart(fig, width="stretch")
+    else:
+        st.info("No hay productos marcados para revisión.")

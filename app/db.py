@@ -42,3 +42,13 @@ def execute(sql: str, params=None):
     with conn.cursor() as cur:
         cur.execute(sql, params)
     conn.commit()
+
+
+def execute_returning_id(sql: str, params=None) -> str | None:
+    """INSERT con RETURNING id → UUID como string."""
+    conn = get_connection()
+    with conn.cursor() as cur:
+        cur.execute(sql, params)
+        result = cur.fetchone()
+    conn.commit()
+    return str(result[0]) if result else None
