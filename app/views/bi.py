@@ -2,22 +2,57 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-@st.cache_data
-def cargar_datos_dummy() -> pd.DataFrame:
-    df = pd.read_csv("data/dummy_sales.csv")
-    df["Fecha"] = pd.to_datetime(df["Fecha"], format="%d/%m/%Y", errors="coerce")
-    df["Forecast_venta_estimada"] = df["Forecast"] * df["Costo_unitario_producto"]
-    return df
 
-def mostrar_vista_bi() -> None:
+def mostrar_vista_bi(df: pd.DataFrame) -> None:
     st.header("BI")
     st.write("Explorador flexible para cortes y descarga de pronósticos.")
 
-    df = cargar_datos_dummy()
+    if df.empty:
+        st.warning("No hay datos disponibles para mostrar.")
+        return
 
-    df["Forecast_venta_estimada"] = (
-        df["Forecast"] * df["Costo_unitario_producto"]
+    df_bi = df.copy()
+
+    if "forecast" not in df_bi.columns and "item_cnt_month" in df_bi.columns:
+        df_bi = df_bi.rename(columns={"item_cnt_month": "forecast"})
+
+    columnas_requeridas = ["shop_id", "item_id", "forecast"]
+    columnas_faltantes = [col for col in columnas_requeridas if col not in df_bi.columns]
+
+    if columnas_faltantes:
+        st.error(f"Faltan columnas necesarias: {columnas_faltantes}")
+        return
+
+    df_bi["forecast"] = pd.to_numeric(df_bi["forecast"], errors="coerce").fillna(0)
+
+    columna_tienda = "shop_name" if "shop_name" in df_bi.columns else "shop_id"
+    columna_categoria = (
+        "item_category_name"
+        if "item_category_name" in df_bi.columns
+        else "item_category_id"
     )
+    columna_producto = "item_name" if "item_name" in df_bi.columns else "item_id"
+
+    if "forecast_year" in df_bi.columns and "forecast_month" in df_bi.columns:
+        df_bi["temporada"] = (
+            df_bi["forecast_year"].astype(str)
+            + "-"
+            + df_bi["forecast_month"].astype(int).astype(str).str.zfill(2)
+        )
+    else:
+        df_bi["temporada"] = "Mes de predicción"
+
+    if "precio_unitario_estimado" not in df_bi.columns:
+        df_bi["precio_unitario_estimado"] = 100.0
+
+    df_bi["venta_estimada"] = df_bi["forecast"] * df_bi["precio_unitario_estimado"]
+
+    if "actual" in df_bi.columns:
+        df_bi["actual"] = pd.to_numeric(df_bi["actual"], errors="coerce").fillna(0)
+        df_bi["error_abs"] = (df_bi["actual"] - df_bi["forecast"]).abs()
+    else:
+        df_bi["actual"] = 0.0
+        df_bi["error_abs"] = 0.0
 
     with st.container():
         st.subheader("Filtros BI")
@@ -27,61 +62,68 @@ def mostrar_vista_bi() -> None:
         with col1:
             categorias = st.multiselect(
                 "Categoría",
-                options=sorted(df["Categoria"].dropna().unique()),
-                default=sorted(df["Categoria"].dropna().unique()),
+                options=sorted(df_bi[columna_categoria].dropna().unique()),
+                default=sorted(df_bi[columna_categoria].dropna().unique()),
                 key="bi_categorias",
             )
 
         with col2:
             tiendas = st.multiselect(
                 "Tienda",
-                options=sorted(df["Tienda"].dropna().unique()),
-                default=sorted(df["Tienda"].dropna().unique()),
+                options=sorted(df_bi[columna_tienda].dropna().unique()),
+                default=sorted(df_bi[columna_tienda].dropna().unique()),
                 key="bi_tiendas",
             )
 
         with col3:
-            tipos = st.multiselect(
-                "Tipo",
-                options=sorted(df["Tipo"].dropna().unique()),
-                default=sorted(df["Tipo"].dropna().unique()),
-                key="bi_tipos",
+            temporadas = st.multiselect(
+                "Temporada",
+                options=sorted(df_bi["temporada"].dropna().unique()),
+                default=sorted(df_bi["temporada"].dropna().unique()),
+                key="bi_temporadas",
             )
 
-    df_filtrado = df[
-        (df["Categoria"].isin(categorias)) &
-        (df["Tienda"].isin(tiendas)) &
-        (df["Tipo"].isin(tipos))
+    df_filtrado = df_bi[
+        df_bi[columna_categoria].isin(categorias)
+        & df_bi[columna_tienda].isin(tiendas)
+        & df_bi["temporada"].isin(temporadas)
     ].copy()
+
+    if df_filtrado.empty:
+        st.warning("No hay datos para los filtros seleccionados.")
+        return
 
     st.subheader("Configuración del corte")
 
     dimensiones_disponibles = [
-        "Tienda",
-        "Categoria",
-        "item_category_name",
-        "Temporada",
-        "Tipo",
+        columna_tienda,
+        columna_categoria,
+        columna_producto,
+        "temporada",
+    ]
+
+    dimensiones_disponibles = [
+        col for col in dimensiones_disponibles if col in df_filtrado.columns
     ]
 
     metricas_disponibles = [
-        "Forecast",
-        "Piezas_vendidas",
-        "Venta_real",
-        "Forecast_venta_estimada",
+        "forecast",
+        "venta_estimada",
+        "actual",
+        "error_abs",
     ]
 
     dimensiones = st.multiselect(
         "Agrupar por",
         options=dimensiones_disponibles,
-        default=["Categoria", "Tipo"],
+        default=[columna_categoria],
         key="bi_dimensiones",
     )
 
     metricas = st.multiselect(
         "Métricas",
         options=metricas_disponibles,
-        default=["Forecast", "Venta_real"],
+        default=["forecast", "venta_estimada"],
         key="bi_metricas",
     )
 
@@ -118,15 +160,15 @@ def mostrar_vista_bi() -> None:
     color = None if dimension_color == "Sin color" else dimension_color
 
     fig = px.bar(
-        df_corte,
+        df_corte.sort_values(metrica_grafico, ascending=False).head(30),
         x=dimension_x,
         y=metrica_grafico,
         color=color,
         title=f"{metrica_grafico} por {dimension_x}",
     )
 
+    fig.update_xaxes(tickangle=45)
     st.plotly_chart(fig, width="stretch")
-
 
     st.subheader("Tabla dinámica BI")
     st.dataframe(df_corte, width="stretch")

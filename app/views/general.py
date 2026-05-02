@@ -1,141 +1,151 @@
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-import plotly.graph_objects as go
+import numpy as np
 
 
-@st.cache_data
-def cargar_datos_dummy() -> pd.DataFrame:
-    df = pd.read_csv("data/dummy_sales.csv")
-    df["Fecha"] = pd.to_datetime(df["Fecha"], format="%d/%m/%Y", errors="coerce")
 
-    columnas_numericas = ["Venta_real", "Forecast", "Costo_unitario_producto", "Piezas_vendidas"]
-    for columna in columnas_numericas:
-        if columna in df.columns:
-            df[columna] = pd.to_numeric(df[columna], errors="coerce")
-
-    return df
-
-
-def mostrar_vista_general() -> None:
+def mostrar_vista_general(df: pd.DataFrame) -> None:
     st.header("Análisis general")
-    st.write("Validación ejecutiva del modelo: forecast vs ground truth.")
+    st.write("Vista ejecutiva del pronóstico mensual de demanda.")
 
-    df = cargar_datos_dummy()
 
-    df_eval = df.dropna(subset=["Venta_real", "Forecast"]).copy()
-
-    if df_eval.empty:
-        st.warning("No hay datos suficientes para evaluar el modelo.")
+    if df.empty:
+        st.warning("No hay datos disponibles para mostrar.")
         return
 
-    df_eval["error_abs"] = (df_eval["Venta_real"] - df_eval["Forecast"]).abs()
-    df_eval["error_pct"] = df_eval["error_abs"] / df_eval["Venta_real"]
-    df_eval["sesgo"] = df_eval["Forecast"] - df_eval["Venta_real"]
+    df_pred = df.copy()
 
-    mae = df_eval["error_abs"].mean()
-    mape = df_eval["error_pct"].mean()
-    sesgo_promedio = df_eval["sesgo"].mean()
-    productos_evaluados = df_eval["item_category_id"].nunique()
+    # Nombre estándar para trabajar en la app
+    if "forecast" not in df_pred.columns and "item_cnt_month" in df_pred.columns:
+        df_pred = df_pred.rename(columns={"item_cnt_month": "forecast"})
+
+    columnas_requeridas = ["shop_id", "item_id", "forecast"]
+    columnas_faltantes = [col for col in columnas_requeridas if col not in df_pred.columns]
+
+    if columnas_faltantes:
+        st.error(f"Faltan columnas necesarias: {columnas_faltantes}")
+        return
+
+    df_pred["forecast"] = pd.to_numeric(df_pred["forecast"], errors="coerce").fillna(0)
+
+
+    if "actual" in df_pred.columns:
+        st.subheader("Evaluación del modelo simulada")
+
+        df_eval = df_pred.copy()
+        df_eval["actual"] = pd.to_numeric(df_eval["actual"], errors="coerce").fillna(0)
+
+        df_eval["error_abs"] = (df_eval["actual"] - df_eval["forecast"]).abs()
+        df_eval["error_pct"] = df_eval["error_abs"] / df_eval["actual"].replace(0, np.nan)
+        df_eval["sesgo"] = df_eval["forecast"] - df_eval["actual"]
+
+        mae = df_eval["error_abs"].mean()
+        mape = df_eval["error_pct"].mean()
+
+        col1, col2 = st.columns(2)
+        col1.metric("MAE", f"{mae:,.2f}")
+        col2.metric("MAPE", f"{mape:.2%}")
+
+    total_predicho = df_pred["forecast"].sum()
+    forecast_promedio = df_pred["forecast"].mean()
+    productos = df_pred["item_id"].nunique()
+    tiendas = df_pred["shop_id"].nunique()
 
     st.info(
-        "Esta vista compara las predicciones contra el ground truth observado. "
-        "La línea diagonal del scatter representa una predicción perfecta."
+        "Esta vista muestra el volumen esperado de demanda para el mes de predicción. "
+        "Las métricas se calculan a partir de las predicciones generadas por el modelo."
     )
 
     col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Demanda total predicha", f"{total_predicho:,.0f}")
+    col2.metric("Forecast promedio", f"{forecast_promedio:,.2f}")
+    col3.metric("Productos únicos", f"{productos:,}")
+    col4.metric("Tiendas únicas", f"{tiendas:,}")
 
-    col1.metric("MAE global", f"{mae:,.0f}")
-    col2.metric("MAPE global", f"{mape:.2%}")
-    col3.metric("Sesgo promedio", f"{sesgo_promedio:,.0f}")
-    col4.metric("Productos evaluados", productos_evaluados)
+    st.subheader("Distribución del forecast")
 
-    st.subheader("Venta real vs Forecast")
-
-    fig_scatter = px.scatter(
-        df_eval,
-        x="Venta_real",
-        y="Forecast",
-        color="error_pct",
-        hover_data=["item_category_name", "Tienda", "Categoria"],
-        title="Venta real vs Forecast",
+    fig_hist = px.histogram(
+        df_pred,
+        x="forecast",
+        nbins=50,
+        title="Distribución de predicciones",
     )
+    st.plotly_chart(fig_hist, width="stretch")
 
-    min_val = min(df_eval["Venta_real"].min(), df_eval["Forecast"].min())
-    max_val = max(df_eval["Venta_real"].max(), df_eval["Forecast"].max())
+    st.subheader("Top categorías por demanda esperada")
 
-    fig_scatter.add_trace(
-        go.Scatter(
-            x=[min_val, max_val],
-            y=[min_val, max_val],
-            mode="lines",
-            name="Predicción perfecta",
-            line=dict(dash="dash"),
+    if "item_category_name" in df_pred.columns:
+        df_categoria = (
+            df_pred.groupby("item_category_name", as_index=False)
+            .agg(
+                forecast_total=("forecast", "sum"),
+                productos=("item_id", "nunique"),
+                tiendas=("shop_id", "nunique"),
+            )
+            .sort_values("forecast_total", ascending=False)
+            .head(15)
         )
-    )
 
-    fig_scatter.update_xaxes(type="log")
-    fig_scatter.update_yaxes(type="log")
+        fig_categoria = px.bar(
+            df_categoria,
+            x="item_category_name",
+            y="forecast_total",
+            title="Top 15 categorías por forecast total",
+        )
+        fig_categoria.update_xaxes(tickangle=45)
+        st.plotly_chart(fig_categoria, width="stretch")
+    else:
+        st.warning("No se encontró `item_category_name`; se omitió el análisis por categoría.")
 
-    st.plotly_chart(fig_scatter, width="stretch")
+    st.subheader("Top tiendas por demanda esperada")
 
-    st.subheader("Evaluación temporal: Forecast vs Ground Truth")
+    columna_tienda = "shop_name" if "shop_name" in df_pred.columns else "shop_id"
 
-    fig_line = px.line(
-        df_eval.sort_values("Fecha"),
-        x="Fecha",
-        y=["Venta_real", "Forecast"],
-        color="item_category_name",
-        title="Forecast vs Ground Truth por fecha",
-    )
-
-    st.plotly_chart(fig_line, width="stretch")
-
-    st.subheader("Error promedio por categoría")
-
-    df_error_categoria = (
-        df_eval
-        .groupby("Categoria", as_index=False)
+    df_tienda = (
+        df_pred.groupby(columna_tienda, as_index=False)
         .agg(
-            mae=("error_abs", "mean"),
-            mape=("error_pct", "mean"),
-            venta_real=("Venta_real", "sum"),
-            forecast=("Forecast", "sum"),
+            forecast_total=("forecast", "sum"),
+            productos=("item_id", "nunique"),
         )
-        .sort_values("mape", ascending=False)
+        .sort_values("forecast_total", ascending=False)
+        .head(15)
     )
 
-    fig_categoria = px.bar(
-        df_error_categoria,
-        x="Categoria",
-        y="mape",
-        title="MAPE por categoría",
+    fig_tienda = px.bar(
+        df_tienda,
+        x=columna_tienda,
+        y="forecast_total",
+        title="Top 15 tiendas por forecast total",
     )
+    fig_tienda.update_xaxes(tickangle=45)
+    st.plotly_chart(fig_tienda, width="stretch")
 
-    st.plotly_chart(fig_categoria, width="stretch")
+    st.subheader("Productos con mayor demanda esperada")
 
-    st.subheader("Error por producto")
+    columnas_producto = ["item_id"]
+    if "item_name" in df_pred.columns:
+        columnas_producto.append("item_name")
+    if "item_category_name" in df_pred.columns:
+        columnas_producto.append("item_category_name")
 
-    df_error_producto = (
-        df_eval
-        .groupby(["item_category_id", "item_category_name", "Categoria"], as_index=False)
+    df_producto = (
+        df_pred.groupby(columnas_producto, as_index=False)
         .agg(
-            mae=("error_abs", "mean"),
-            mape=("error_pct", "mean"),
-            venta_real=("Venta_real", "sum"),
-            forecast=("Forecast", "sum"),
-            sesgo=("sesgo", "mean"),
+            forecast_total=("forecast", "sum"),
+            tiendas=("shop_id", "nunique"),
         )
-        .sort_values("mape", ascending=False)
+        .sort_values("forecast_total", ascending=False)
+        .head(50)
     )
 
-    st.dataframe(df_error_producto, width="stretch")
+    st.dataframe(df_producto, width="stretch")
 
-    csv = df_error_producto.to_csv(index=False).encode("utf-8")
+    csv = df_producto.to_csv(index=False).encode("utf-8")
 
     st.download_button(
-        label="Descargar evaluación por producto",
+        label="Descargar top productos",
         data=csv,
-        file_name="evaluacion_modelo_por_producto.csv",
+        file_name="top_productos_forecast.csv",
         mime="text/csv",
     )
