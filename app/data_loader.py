@@ -39,22 +39,21 @@ def cargar_datos_app() -> pd.DataFrame:
 def _cargar_desde_rds() -> pd.DataFrame:
     sql = """
     SELECT 
-        pr.item_id,
-        pr.shop_id,
-        pred.predicted_sales   AS forecast,
-        pred.lower_bound,
-        pred.upper_bound,
-        act.actual_sales       AS actual
-    FROM predictions pred
-    JOIN products pr ON pred.product_id = pr.id
-    LEFT JOIN actuals act 
-           ON act.product_id = pr.id 
-          AND act.sale_date = '2015-10-01'
-    WHERE pred.prediction_date = '2015-11-01'
+        item_id,
+        shop_id,
+        item_category_name,
+        forecast,
+        lower_bound,
+        upper_bound,
+        actual,
+        forecast_year,
+        forecast_month,
+        temporada
+    FROM mv_app_data
     """
     rows = query(sql)
     if not rows:
-        raise ValueError("No hay predicciones en RDS para 2015-11-01.")
+        raise ValueError("No hay datos en mv_app_data.")
 
     df = pd.DataFrame(rows)
 
@@ -65,26 +64,25 @@ def _cargar_desde_rds() -> pd.DataFrame:
     df["actual"] = pd.to_numeric(df["actual"], errors="coerce").fillna(0)
     df["lower_bound"] = pd.to_numeric(df["lower_bound"], errors="coerce").fillna(0)
     df["upper_bound"] = pd.to_numeric(df["upper_bound"], errors="coerce").fillna(0)
+    df["forecast_year"] = df["forecast_year"].astype(int)
+    df["forecast_month"] = df["forecast_month"].astype(int)
 
-    # Enriquecer con catálogos locales
+    # Enriquecer con catálogos locales (nombres de producto y tienda)
     items, cats, shops = cargar_catalogos()
     df = df.merge(
         items[["item_id", "item_name", "item_category_id"]],
         on="item_id", how="left"
     )
-    df = df.merge(
-        cats[["item_category_id", "item_category_name"]],
-        on="item_category_id", how="left"
-    )
+    # Solo merge categoría si mv_app_data no la trajo ya
+    if "item_category_name" not in df.columns or df["item_category_name"].isna().all():
+        df = df.merge(
+            cats[["item_category_id", "item_category_name"]],
+            on="item_category_id", how="left"
+        )
     df = df.merge(
         shops[["shop_id", "shop_name"]],
         on="shop_id", how="left"
     )
-
-    # Compatibilidad con vistas existentes
-    df["forecast_year"] = 2015
-    df["forecast_month"] = 11
-    df["temporada"] = "2015-11"
 
     return df
 

@@ -77,7 +77,7 @@ def get_connection():
 def download_s3(tmp: Path):
     s3  = boto3.client("s3", region_name=AWS_REGION)
     pfx = S3_RAW_PREFIX.rstrip("/") + "/"
-    for fname in ["items.csv", "sales_train.csv", "test.csv"]:
+    for fname in ["items.csv", "item_categories.csv", "sales_train.csv", "test.csv"]:
         s3.download_file(S3_BUCKET, pfx + fname, str(tmp / fname))
         print(f"  s3 → {fname}")
     s3.download_file(S3_BUCKET, S3_MODEL_KEY, str(tmp / "model.joblib"))

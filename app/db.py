@@ -4,7 +4,7 @@ import boto3
 import psycopg2
 import streamlit as st
 
-SECRET_NAME = "rds/1c-credentials"
+SECRET_NAME = "rds/retail-poc-credentials"
 AWS_REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
 
 
@@ -23,6 +23,7 @@ def get_connection():
         dbname=secret["dbname"],
         user=secret["username"],
         password=secret["password"],
+        sslmode="require",
         connect_timeout=5,
     )
 

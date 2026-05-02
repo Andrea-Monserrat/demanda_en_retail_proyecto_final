@@ -35,7 +35,7 @@ def mostrar_vista_general(df: pd.DataFrame) -> None:
         st.subheader("Evaluación del modelo vs baseline naive")
 
         # KPI global
-        global_row = df_metrics[df_metrics["group_key"] == "all"]
+        global_row = df_metrics[df_metrics["group_key"].isin(["all", "global"])]
         if not global_row.empty:
             rmse_model = float(global_row["rmse"].iloc[0])
             rmse_naive = float(global_row["naive_rmse"].iloc[0])
@@ -92,6 +92,9 @@ def mostrar_vista_general(df: pd.DataFrame) -> None:
     if "actual" in df_pred.columns and df_pred["actual"].notna().any():
         st.subheader("Scatter: predicción vs actual")
         df_eval = df_pred[df_pred["actual"] > 0].copy()
+        # Muestrear para no saturar el renderizado del navegador
+        if len(df_eval) > 5000:
+            df_eval = df_eval.sample(n=5000, random_state=42)
         fig = px.scatter(
             df_eval,
             x="actual",
