@@ -32,7 +32,7 @@ import psycopg2
 import psycopg2.extras
 
 # ── Configuración ──────────────────────────────────────────────────────────────
-S3_BUCKET     = os.environ["S3_BUCKET"]
+S3_BUCKET     = os.getenv("S3_BUCKET", "")
 S3_RAW_PREFIX = os.getenv("S3_RAW_PREFIX", "raw/")
 S3_MODEL_KEY  = os.getenv("S3_MODEL_KEY",  "models/model.joblib")
 SECRET_ID     = os.getenv("SECRET_ID",     "rds/1c-credentials")
@@ -213,6 +213,9 @@ def build_matrix(tmp: Path) -> pd.DataFrame:
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 def main():
+    if not S3_BUCKET:
+        raise SystemExit("ERROR: define la variable de entorno S3_BUCKET. Ejemplo:\n  export S3_BUCKET=mi-bucket-123\n")
+
     print("=== load_predictions.py ===")
 
     with tempfile.TemporaryDirectory() as tmpdir:
