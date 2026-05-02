@@ -43,13 +43,15 @@ VALID_MONTH  = 33          # Oct 2015 — ground truth
 CLIP_MIN, CLIP_MAX = 0, 20
 
 FEATURE_COLS = [
-    "shop_id", "item_id", "item_category_id", "month", "year", "shop_size",
+    "shop_id", "item_id", "item_category_id", "cat_lvl1", "cat_lvl2",
+    "month", "year", "shop_size",
     "item_cnt_month_lag_1",  "item_price_mean_lag_1",
     "item_cnt_month_lag_2",  "item_price_mean_lag_2",
     "item_cnt_month_lag_3",  "item_price_mean_lag_3",
     "item_cnt_month_lag_6",  "item_price_mean_lag_6",
     "item_cnt_month_lag_12", "item_price_mean_lag_12",
     "shop_mean_lag_1", "item_mean_lag_1", "cat_mean_lag_1",
+    "cat_lvl1_mean_lag_1", "cat_lvl2_mean_lag_1",
 ]
 
 
@@ -73,7 +75,7 @@ def get_connection():
 def download_s3(tmp: Path):
     s3  = boto3.client("s3", region_name=AWS_REGION)
     pfx = S3_RAW_PREFIX.rstrip("/") + "/"
-    for fname in ["items.csv", "sales_train.csv", "test.csv"]:
+    for fname in ["items.csv", "item_categories.csv", "sales_train.csv", "test.csv"]:
         s3.download_file(S3_BUCKET, pfx + fname, str(tmp / fname))
         print(f"  s3 → {fname}")
     s3.download_file(S3_BUCKET, S3_MODEL_KEY, str(tmp / "model.joblib"))
@@ -81,12 +83,36 @@ def download_s3(tmp: Path):
 
 
 # ── Feature engineering (replica exacta de load_predictions.py) ───────────────
+def _preparar_items_con_categorias(
+    items: pd.DataFrame, item_categories: pd.DataFrame
+) -> pd.DataFrame:
+    """Agrega niveles de categoría a items desde item_categories.csv."""
+    tbl_categories = item_categories.copy()
+    partes_categoria = tbl_categories["item_category_name"].str.split("-", n=1, expand=True)
+    tbl_categories["cat_lvl1_name"] = partes_categoria[0].str.strip()
+    tbl_categories["cat_lvl2_name"] = partes_categoria[1].fillna("unknown").str.strip()
+    tbl_categories["cat_lvl1"] = (
+        tbl_categories["cat_lvl1_name"].astype("category").cat.codes.astype(np.int8)
+    )
+    tbl_categories["cat_lvl2"] = (
+        tbl_categories["cat_lvl2_name"].astype("category").cat.codes.astype(np.int8)
+    )
+    tbl_categories = tbl_categories[["item_category_id", "cat_lvl1", "cat_lvl2"]].copy()
+    resultado = items.merge(tbl_categories, on="item_category_id", how="left")
+    resultado["cat_lvl1"] = resultado["cat_lvl1"].fillna(-1).astype(np.int8)
+    resultado["cat_lvl2"] = resultado["cat_lvl2"].fillna(-1).astype(np.int8)
+    return resultado
+
+
 def build_matrix(tmp: Path) -> pd.DataFrame:
     from itertools import product as iproduct
 
     items = pd.read_csv(tmp / "items.csv")
+    item_categories = pd.read_csv(tmp / "item_categories.csv")
     sales = pd.read_csv(tmp / "sales_train.csv")
     test  = pd.read_csv(tmp / "test.csv")
+
+    items = _preparar_items_con_categorias(items, item_categories)
 
     sales = sales[(sales["item_price"] > 0) & (sales["item_cnt_day"] >= 0)].copy()
 
@@ -128,8 +154,11 @@ def build_matrix(tmp: Path) -> pd.DataFrame:
     matrix["item_cnt_month"]  = matrix["item_cnt_month"].fillna(0).clip(0, 20).astype(np.float32)
     matrix["item_price_mean"] = matrix["item_price_mean"].fillna(0).astype(np.float32)
 
-    cat_map = items.set_index("item_id")["item_category_id"]
-    matrix["item_category_id"] = matrix["item_id"].map(cat_map).astype(np.int16)
+    item_feature_map = items.set_index("item_id")[["item_category_id", "cat_lvl1", "cat_lvl2"]]
+    matrix = matrix.merge(item_feature_map, left_on="item_id", right_index=True, how="left")
+    matrix["item_category_id"] = matrix["item_category_id"].fillna(-1).astype(np.int16)
+    matrix["cat_lvl1"] = matrix["cat_lvl1"].fillna(-1).astype(np.int8)
+    matrix["cat_lvl2"] = matrix["cat_lvl2"].fillna(-1).astype(np.int8)
     matrix["month"] = (matrix["date_block_num"] % 12).astype(np.int8)
     matrix["year"]  = (2013 + matrix["date_block_num"] // 12).astype(np.int16)
 
@@ -146,6 +175,8 @@ def build_matrix(tmp: Path) -> pd.DataFrame:
         (["shop_id"],          "shop_mean_lag_1"),
         (["item_id"],          "item_mean_lag_1"),
         (["item_category_id"], "cat_mean_lag_1"),
+        (["cat_lvl1"],         "cat_lvl1_mean_lag_1"),
+        (["cat_lvl2"],         "cat_lvl2_mean_lag_1"),
     ]:
         mc  = ["date_block_num"] + gcols
         grp = (
@@ -158,7 +189,13 @@ def build_matrix(tmp: Path) -> pd.DataFrame:
 
     lag_cols = list(dict.fromkeys(
         [c for c in matrix.columns if "lag_" in c]
-        + ["shop_mean_lag_1", "item_mean_lag_1", "cat_mean_lag_1"]
+        + [
+            "shop_mean_lag_1",
+            "item_mean_lag_1",
+            "cat_mean_lag_1",
+            "cat_lvl1_mean_lag_1",
+            "cat_lvl2_mean_lag_1",
+        ]
     ))
     matrix[lag_cols] = matrix[lag_cols].fillna(0).astype(np.float32)
 

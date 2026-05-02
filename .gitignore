@@ -23,3 +23,10 @@ Pau.md
 
 #diagramas
 *.drawio
+
+# Datos crudos y procesados (no al repo — se descargan de S3 en deploy)
+data/raw/
+data/prep/
+
+# Scripts de test temporales
+test_etl_local.py
