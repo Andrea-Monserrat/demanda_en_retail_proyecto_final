@@ -35,7 +35,7 @@ En este MVP demostramos:
 **Servicios AWS utilizados:** S3 · ECR · ECS Fargate · ALB · RDS PostgreSQL · Secrets Manager · Glue Data Catalog · Athena · CloudFormation
 
 ---
-🧠 Pipeline de Machine Learning
+## 🧠 Pipeline de Machine Learning
 
 ![Diagrama de ML](diagramas/ML_pipeline.drawio.png)
 
@@ -166,7 +166,7 @@ bash infra/scripts/build_and_push.sh
 
 ---
 
-## 📊 Resultados del Modelo (pendiente de modificar si mejora el modelo)
+## 📊 Resultados del Modelo
 
 | Métrica | Valor | Nota |
 |---|---|---|
@@ -181,9 +181,9 @@ bash infra/scripts/build_and_push.sh
 | Grupo | RMSE modelo | RMSE naive | Mejora |
 |---|---|---|---|
 | Global (`all`) | 2.94 | 6.29 | 53.3% |
-| `category:1` | *(rellenar)* | *(rellenar)* | *(rellenar)* |
-| `category:2` | *(rellenar)* | *(rellenar)* | *(rellenar)* |
-| `shop:25` | *(rellenar)* | *(rellenar)* | *(rellenar)* |
+| `category:Игровые консоли — XBOX ONE` | 1.11 | 2.21 | 49.8% |
+| `category:Книги — Методические материалы 1С` | 2.13 | 133.62 | 98.4% |
+| `shop:36` | 1.11 | 1.56 | 28.8% |
 
 > Los valores por grupo se consultan desde la tabla `evaluation_metrics` en la vista **General** de la app.
 
@@ -271,6 +271,7 @@ ORDER BY forecast_total DESC
 - `psycopg2-binary` — conexión PostgreSQL
 - `boto3` — AWS SDK (Secrets Manager, S3)
 - `joblib`, `numpy`, `scikit-learn` — ETL de predicciones
+- `awswrangler` — exporta RDS → S3 Parquet + Glue Data Catalog
 
 ---
 

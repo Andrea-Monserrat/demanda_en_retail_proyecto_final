@@ -269,7 +269,7 @@ Las credenciales de RDS **nunca están hardcodeadas**. Se recuperan en runtime d
 import boto3, json, psycopg2
 
 secret = boto3.client("secretsmanager").get_secret_value(
-    SecretId="rds/1c-credentials"
+    SecretId="rds/retail-poc-credentials"
 )
 creds = json.loads(secret["SecretString"])
 conn = psycopg2.connect(
@@ -301,8 +301,6 @@ El secret es creado automáticamente por el stack de CloudFormation `rds.yaml`.
 El modelo supera consistentemente al baseline en todos los grupos evaluados, lo que valida su utilidad para el negocio.
 
 ### 5.2 Evaluación por grupo
-
-*(Esta sección se completa con los valores reales generados por `load_metrics.py` después de correr el ETL)*
 
 | Categoría | RMSE modelo | RMSE naive | Mejora % |
 |---|---|---|---|
