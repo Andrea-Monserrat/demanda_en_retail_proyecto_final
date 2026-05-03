@@ -32,7 +32,7 @@ En este MVP demostramos:
 
 ![Diagrama de arquitectura](diagramas/arquitectura-ejecutiva.drawio.png)
 
-**Servicios AWS utilizados:** S3 · ECR · ECS Fargate · ALB · RDS PostgreSQL · Secrets Manager · Glue Data Catalog · CloudFormation
+**Servicios AWS utilizados:** S3 · ECR · ECS Fargate · ALB · RDS PostgreSQL · Secrets Manager · Glue Data Catalog · Athena · CloudFormation
 
 ---
 🧠 Pipeline de Machine Learning
@@ -191,15 +191,28 @@ bash infra/scripts/build_and_push.sh
 
 ## 📸 Evidencia de despliegue
 
-| Recurso AWS | Screenshot | Estado |
-|---|---|---|
-| CloudFormation — stack `1c-rds` | *(pendiente)* | `CREATE_COMPLETE` |
-| CloudFormation — stack `1c-ecs` | *(pendiente)* | `CREATE_COMPLETE` |
-| ECS — servicio corriendo | *(pendiente)* | `RUNNING` |
-| ECR — imagen publicada | *(pendiente)* | `1c-app:latest` |
-| RDS — instancia available | *(pendiente)* | `Available` |
-| URL pública funcionando | *(pendiente)* | `http://...` |
-| Glue Data Catalog | *(pendiente)* | Database `retail_poc` |
+### Vistas de la aplicación
+
+| Vista | Screenshot |
+|---|---|
+| Análisis General | ![General](docs/screenshots/01-vista-general_page-0001.jpg) |
+| Planeación | ![Planeación](docs/screenshots/02-vista-planeacion_page-0001.jpg) |
+| Finanzas | ![Finanzas](docs/screenshots/03-vista-finanzas_page-0001.jpg) |
+| BI | ![BI](docs/screenshots/04-vista-bi_page-0001.jpg) |
+| Operativa | ![Operativa](docs/screenshots/05-vista-operativa_page-0001.jpg) |
+| URL pública | ![URL](docs/screenshots/06-url-publica.png) |
+
+### Infraestructura AWS
+
+| Recurso AWS | Screenshot |
+|---|---|
+| CloudFormation — stack `retail-ecs` | ![CFN](docs/screenshots/aws-cloudformation.png) |
+| ECS — servicio corriendo | ![ECS](docs/screenshots/aws-ecs-service.png) |
+| ECR — imagen publicada | ![ECR](docs/screenshots/aws-ecr.png) |
+| RDS — instancia available | ![RDS](docs/screenshots/aws-rds.png) |
+| S3 — bucket con datos | ![S3](docs/screenshots/aws-s3.png) |
+| Glue Data Catalog | ![Glue](docs/screenshots/aws-glue.png) |
+| Secrets Manager | ![Secrets](docs/screenshots/aws-secretsmanager.png) |
 
 ---
 
@@ -214,9 +227,39 @@ bash infra/scripts/build_and_push.sh
 | S3 | ~500 MB (datos + modelo) | <$1 |
 | Secrets Manager | 1 secret | ~$0.40 |
 | Glue Data Catalog | 1 database | $0.00 |
-| **Total aproximado** | | **~$45/mes** |
+| **Total aproximado** | | **~$46/mes** |
 
 Para el POC (1 semana de evaluación): **~$12 USD**.
+
+---
+
+## 🔍 Capa analítica: Athena + Glue Data Catalog
+
+Además de RDS (OLTP), las tablas del POC están disponibles en S3 como **Parquet** y catalogadas en **Glue Data Catalog** para queries analíticas con Athena:
+
+```sql
+-- Ejemplo: revenue estimado por categoría desde la capa Gold en S3
+SELECT
+    item_category_name,
+    COUNT(*) AS num_productos,
+    ROUND(SUM(forecast), 2) AS forecast_total,
+    ROUND(SUM(actual), 2) AS actual_total
+FROM retail_poc.mv_app_data
+GROUP BY item_category_name
+ORDER BY forecast_total DESC
+```
+
+| Tabla en Glue | Origen | Filas aprox |
+|---|---|---|
+| `retail_poc.products` | RDS | 214,200 |
+| `retail_poc.predictions` | RDS | 214,200 |
+| `retail_poc.actuals` | RDS | 28,680 |
+| `retail_poc.evaluation_metrics` | RDS | 101 |
+| `retail_poc.mv_app_data` | Vista materializada RDS | 214,200 |
+| `retail_poc.business_feedback` | RDS | 0 (lista para recibir datos) |
+| `retail_poc.flagged_products` | RDS | 0 (lista para recibir datos) |
+
+**ETL:** `etl/rds_to_s3_glue.py` exporta cada tabla de RDS a Parquet en `s3://{bucket}/gold/{tabla}/` y registra el schema en Glue automáticamente via `awswrangler`.
 
 ---
 

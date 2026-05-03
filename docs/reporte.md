@@ -51,6 +51,7 @@ Demostrar al consejo directivo que es posible convertir los datos transaccionale
 | **Amazon ECS Fargate** | Ejecución serverless de contenedores | No administrar servidores; escala automática; pago por uso |
 | **Application Load Balancer** | Exposición pública HTTPS/HTTP | Entry point único con health checks; requerido para URL pública |
 | **AWS CloudFormation** | Infraestructura como código | Deploy reproducible, versionable y auditablé; evita clicks en consola |
+| **Amazon Athena** | Queries SQL analíticas sobre datos en S3 (Parquet) | Serverless, paga por TB escaneado; complementa RDS para BI y reportes |
 | **Amazon SageMaker** *(tareas previas)* | Entrenamiento del modelo HistGradientBoostingRegressor | Pipeline BYOC con Docker; Model Registry; Batch Transform opcional |
 
 ### 2.3 Flujo de datos end-to-end
@@ -79,7 +80,55 @@ Demostrar al consejo directivo que es posible convertir los datos transaccionale
 5. Usuarios de negocio — URL pública (ALB)
 ```
 
-### 2.4 Decisión clave: pre-computo vs inferencia en tiempo real
+### 2.4 Capa analítica: S3 + Glue + Athena
+
+Además de RDS (OLTP operacional), el POC expone una **capa analítica** en S3 (Parquet) registrada en **Glue Data Catalog** y consultable con **Athena**:
+
+```
+RDS (tablas transaccionales)
+    │
+    ▼ (ETL offline)
+S3  s3://bucket/gold/{tabla}/  (Parquet + Snappy)
+    │
+    ▼
+Glue Data Catalog  (schema registrado)
+    │
+    ▼
+Amazon Athena  (queries SQL analíticas)
+```
+
+**Por qué dos capas:**
+- **RDS** responde en <1s para la app Streamlit (filtros, CRUD, feedback)
+- **Athena** escanea Parquet columnar para reportes ad-hoc, análisis de negocio y validación de datos sin afectar la base operacional
+
+**Tablas disponibles en Athena:**
+
+| Tabla | Filas | Descripción |
+|---|---|---|
+| `retail_poc.products` | 214,200 | Catálogo maestro |
+| `retail_poc.predictions` | 214,200 | Pronósticos mes 34 |
+| `retail_poc.actuals` | 28,680 | Ventas reales mes 33 |
+| `retail_poc.evaluation_metrics` | 101 | Métricas por grupo |
+| `retail_poc.mv_app_data` | 214,200 | Vista unificada (JOIN pre-computado) |
+| `retail_poc.business_feedback` | 0 | Feedback de negocio (lista para datos) |
+| `retail_poc.flagged_products` | 0 | Alertas de productos (lista para datos) |
+
+**Query de ejemplo en Athena:**
+
+```sql
+-- Top 10 categorías por forecast total
+SELECT
+    item_category_name,
+    COUNT(*) AS num_productos,
+    ROUND(SUM(forecast), 2) AS forecast_total,
+    ROUND(SUM(actual), 2) AS actual_total
+FROM retail_poc.mv_app_data
+GROUP BY item_category_name
+ORDER BY forecast_total DESC
+LIMIT 10
+```
+
+### 2.5 Decisión clave: pre-computo vs inferencia en tiempo real
 
 Elegimos **pre-computar las predicciones** y guardarlas en RDS, en lugar de cargar el modelo dentro del contenedor de Streamlit.
 
@@ -284,9 +333,9 @@ El modelo supera consistentemente al baseline en todos los grupos evaluados, lo 
 
 ### 5.3 Scatter plot: predicción vs real
 
-![Scatter plot predictions vs actuals](../diagramas/scatter-predictions-vs-actuals.png)
+![Scatter plot predictions vs actuals](screenshots/01-vista-general_page-0001.jpg)
 
-*(Screenshot de la vista General de la app)*
+*Screenshot de la vista General de la app — página 1*
 
 La diagonal roja representa la predicción perfecta. Los puntos cercanos a la diagonal indican buen desempeño del modelo.
 
@@ -296,7 +345,9 @@ La diagonal roja representa la predicción perfecta. Los puntos cercanos a la di
 
 ### 6.1 Vista 1 — Análisis General (Chief Applied Scientist)
 
-![Vista General](../screenshots/vista-general.png)
+![Vista General p1](screenshots/01-vista-general_page-0001.jpg)
+![Vista General p2](screenshots/01-vista-general_page-0002.jpg)
+![Vista General p3](screenshots/01-vista-general_page-0003.jpg)
 
 **Funcionalidad:**
 - KPIs globales: RMSE modelo, RMSE naive, MAE, productos evaluados
@@ -306,7 +357,8 @@ La diagonal roja representa la predicción perfecta. Los puntos cercanos a la di
 
 ### 6.2 Vista 2 — Dirección de Planeación
 
-![Vista Planeación](../screenshots/vista-planeacion.png)
+![Vista Planeación p1](screenshots/02-vista-planeacion_page-0001.jpg)
+![Vista Planeación p2](screenshots/02-vista-planeacion_page-0002.jpg)
 
 **Funcionalidad:**
 - Filtros: tienda, categoría, producto, temporada
@@ -316,7 +368,7 @@ La diagonal roja representa la predicción perfecta. Los puntos cercanos a la di
 
 ### 6.3 Vista 3 — Finanzas
 
-![Vista Finanzas](../screenshots/vista-finanzas.png)
+![Vista Finanzas](screenshots/03-vista-finanzas_page-0001.jpg)
 
 **Funcionalidad:**
 - Checkbox "Seleccionar todas" para categorías y tiendas
@@ -325,7 +377,8 @@ La diagonal roja representa la predicción perfecta. Los puntos cercanos a la di
 
 ### 6.4 Vista 4 — BI (Explorador de cortes)
 
-![Vista BI](../screenshots/vista-bi.png)
+![Vista BI p1](screenshots/04-vista-bi_page-0001.jpg)
+![Vista BI p2](screenshots/04-vista-bi_page-0002.jpg)
 
 **Funcionalidad:**
 - Selección de dimensiones (Tienda, Categoría, Producto, Temporada, Tipo)
@@ -335,7 +388,8 @@ La diagonal roja representa la predicción perfecta. Los puntos cercanos a la di
 
 ### 6.5 Vista 5 — Operativa (Feedback)
 
-![Vista Operativa](../screenshots/vista-operativa.png)
+![Vista Operativa p1](screenshots/05-vista-operativa_page-0001.jpg)
+![Vista Operativa p2](screenshots/05-vista-operativa_page-0002.jpg)
 
 **Funcionalidad:**
 - Dropdown de producto con métricas resumen
@@ -353,34 +407,45 @@ La diagonal roja representa la predicción perfecta. Los puntos cercanos a la di
 
 | Stack | Estado | Screenshot |
 |---|---|---|
-| `1c-rds` | `CREATE_COMPLETE` | *(pendiente)* |
-| `1c-ecs` | `CREATE_COMPLETE` | *(pendiente)* |
+| `retail-ecs` | `CREATE_COMPLETE` | ![CloudFormation](screenshots/aws-cloudformation.png) |
 
 ### 7.2 ECS
 
 | Servicio | Estado | Tasks running | Screenshot |
 |---|---|---|---|
-| `1c-retail-app` | ACTIVE | 1/1 | *(pendiente)* |
+| `1c-retail-app` | ACTIVE | 1/1 | ![ECS](screenshots/aws-ecs-service.png) |
 
 ### 7.3 ECR
 
-| Repositorio | Imagen | Último push | Screenshot |
-|---|---|---|---|
-| `1c-app` | `latest` | *(fecha)* | *(pendiente)* |
+| Repositorio | Imagen | Screenshot |
+|---|---|---|
+| `1c-app` | `latest` | ![ECR](screenshots/aws-ecr.png) |
 
 ### 7.4 RDS
 
 | Instancia | Clase | Estado | Screenshot |
 |---|---|---|---|
-| `1c-retail-poc-*` | `db.t3.micro` | Available | *(pendiente)* |
+| `retail-poc` | `db.t3.micro` | Available | ![RDS](screenshots/aws-rds.png) |
 
 ### 7.5 URL pública
 
-![App funcionando en browser](../screenshots/url-publica.png)
+![App funcionando en browser](screenshots/06-url-publica.png)
 
 ### 7.6 Glue Data Catalog
 
-![Glue Database](../screenshots/glue-database.png)
+![Glue Database](screenshots/aws-glue.png)
+
+### 7.7 S3
+
+| Bucket | Contenido | Screenshot |
+|---|---|---|
+| `1c-retail-poc-334931733619` | `gold/` (Parquet), `raw/`, `models/` | ![S3](screenshots/aws-s3.png) |
+
+### 7.8 Secrets Manager
+
+| Secret | Uso | Screenshot |
+|---|---|---|
+| `rds/retail-poc-credentials` | Credenciales RDS | ![Secrets](screenshots/aws-secretsmanager.png) |
 
 ---
 
@@ -392,12 +457,13 @@ La diagonal roja representa la predicción perfecta. Los puntos cercanos a la di
 |---|---|---|
 | RDS PostgreSQL | `db.t3.micro`, 20 GB gp2, single-AZ | ~$12.00 |
 | ECS Fargate | 0.5 vCPU, 2 GB, 1 tarea continua | ~$15.00 |
+| Amazon Athena | ~2 GB escaneados/mes | ~$0.01 |
 | Application Load Balancer | 1 ALB + LCU mínimo | ~$16.00 |
 | ECR | 1 imagen (~500 MB) | ~$0.05 |
 | S3 | ~500 MB + requests | ~$0.50 |
 | Secrets Manager | 1 secret | ~$0.40 |
 | Glue Data Catalog | <1M objetos | $0.00 |
-| **Total** | | **~$45/mes** |
+| **Total** | | **~$46/mes** |
 
 ### 8.2 Costo del POC (1 semana)
 
@@ -479,4 +545,4 @@ aws ecr delete-repository --repository-name 1c-app --force
 
 ---
 
-*Documento generado en mayo 2026. Última actualización: *(fecha final)*.*
+*Documento generado en mayo 2026. Última actualización: 30 abril 2026.*
