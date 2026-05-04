@@ -275,6 +275,12 @@ ORDER BY forecast_total DESC
 
 ---
 
+## Video tour
+
+- **Video tour de app :** `https://drive.google.com/file/d/1Y2TuboX8DhpQ2V6-kbIheJPSVKbvoaOe/view?usp=sharing`
+  
+---
+
 📤 **Contacto:**
 - Paulina Garza — paugarza2208@gmail.com
 - Andrea Monserrat Arredondo Rodríguez — andrea.monserrat.ar@gmail.com
