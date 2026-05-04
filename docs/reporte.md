@@ -518,12 +518,14 @@ aws ecr delete-repository --repository-name 1c-app --force
 | Herramienta | Para qué se usó | ¿Qué parte del proyecto? |
 |---|---|---|
 | **Kimi (Moonshot AI)** | Consultas puntuales de sintaxis SQL, Python y AWS CLI; optimización de queries de RDS; revisión de estilo de documentación | `README.md`, `docs/reporte.md`, ajustes en `app/db.py` y `app/views/general.py` |
+| **Claude (Anthropic)** | Adaptación de plantillas de clase al proyecto; configuración de archivos de entorno (`.gitignore`, exclusiones de sistema); limpieza de archivos temporales en el repositorio | `.gitignore`, limpieza de `.DS_Store` y `__pycache__`, merge de `feature/infra` |
 
 > **Declaración del equipo:** Todo el código de lógica de negocio (feature engineering, entrenamiento del modelo, vistas de Streamlit), el diseño de la arquitectura, los diagramas draw.io y las decisiones de diseño del esquema de base de datos son producto original del equipo. Las herramientas de IA se utilizaron exclusivamente como asistente de consulta técnica para:
 > - Verificar sintaxis de comandos AWS CLI y boto3
 > - Revisar estructura de documentación Markdown
 > - Sugerencias de optimización de queries PostgreSQL (índices, vistas materializadas)
 > - Debugging de errores de despliegue en ECS/Docker
+> - Configuración de exclusiones de repositorio y adaptación de plantillas de infraestructura
 >
 > Ninguna parte del código de lógica de negocio, ni las decisiones arquitectónicas, fueron generadas automáticamente por IA.
 
