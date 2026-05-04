@@ -3,7 +3,7 @@
 > **POC de Machine Learning en producción** para el pronóstico mensual de demanda a nivel producto–tienda, desplegado como aplicación Streamlit en AWS con URL pública.
 
 🔗 **URL de la app:** `http://1c-retail-app-alb-154966582.us-east-1.elb.amazonaws.com`  
-📹 **Video demo:** *(enlace a subir)*
+📹 **Video demo:** `https://drive.google.com/file/d/1Y2TuboX8DhpQ2V6-kbIheJPSVKbvoaOe/view?usp=sharing`
 
 ---
 
@@ -273,12 +273,6 @@ ORDER BY forecast_total DESC
 - `joblib`, `numpy`, `scikit-learn` — ETL de predicciones
 - `awswrangler` — exporta RDS → S3 Parquet + Glue Data Catalog
 
----
-
-## Video tour
-
-- **Video tour de app :** `https://drive.google.com/file/d/1Y2TuboX8DhpQ2V6-kbIheJPSVKbvoaOe/view?usp=sharing`
-  
 ---
 
 📤 **Contacto:**
