@@ -1,0 +1,18 @@
+2026-05-01T20:45:26+0000 - f8e877d12dda - train - INFO - action=train status=started
+2026-05-01T20:45:26+0000 - f8e877d12dda - train - INFO - action=read_matrix status=started file=data/prep/matrix.parquet
+2026-05-01T20:45:27+0000 - f8e877d12dda - train - INFO - action=read_matrix status=success rows=11098754 cols=27
+2026-05-01T20:45:27+0000 - f8e877d12dda - train - INFO - action=load_prep status=success matrix_rows=11,098,754 n_features=23 files=(matrix.parquet,feature_cols.json,meta.json)
+2026-05-01T20:45:27+0000 - f8e877d12dda - train - INFO - action=months status=success valid_month=33 test_month=34
+2026-05-01T20:45:28+0000 - f8e877d12dda - train - INFO - action=split status=success valid_month=33 train_rows=10,646,470 valid_rows=238,084
+2026-05-01T20:45:28+0000 - f8e877d12dda - train - INFO - action=baseline status=success baseline_feature=item_cnt_month_lag_1 baseline_rmse=1.1365
+2026-05-01T20:45:28+0000 - f8e877d12dda - train - ERROR - action=train status=failure error_type=NameError error_message=name 'StandardScaler' is not defined
+Traceback (most recent call last):
+  File "/app/src/training/train.py", line 395, in main
+    _ejecutar_entrenamiento(
+  File "/app/src/training/train.py", line 356, in _ejecutar_entrenamiento
+    candidatos = _definir_modelos_candidatos(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/training/train.py", line 222, in _definir_modelos_candidatos
+    StandardScaler(),
+    ^^^^^^^^^^^^^^
+NameError: name 'StandardScaler' is not defined

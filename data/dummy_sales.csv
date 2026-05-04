@@ -1,0 +1,17 @@
+item_category_id,item_category_name,Tienda,Categoria,Temporada,Costo_unitario_producto,Fecha,Forecast,Tipo,Piezas_vendidas,Venta_real
+0,Laptops,A002,Computo,2Q,10000,26/04/2025,450,Historico,400,6000000
+1,Mouse,B001,Accesorios,2Q,300,27/04/2025,350,Historico,315,94500
+2,Mochilas Laptop,C4960,Accesorios,2Q,800,28/04/2025,160,Historico,142,113600
+3,Monitores,D3005,Computo,2Q,4500,29/04/2025,320,Historico,300,1350000
+4,Teclados,A002,Accesorios,2Q,700,30/04/2025,210,Historico,202,141400
+5,Laptops,B001,Computo,1Q,12000,26/01/2025,400,Historico,375,5625000
+6,Audifonos,A002,Accesorios,1Q,1200,27/01/2025,580,Historico,547,656400
+7,Laptops,B001,Computo,4Q,15000,28/12/2025,720,Forecast,10,150000
+9,Mochilas Laptop,D3005,Accesorios,4Q,800,30/12/2025,1065,Forecast,20,16000
+10,Audifonos,C4960,Accesorios,4Q,1200,31/12/2025,1100,Forecast,5,62000
+12,Laptops,A002,Computo,2Q,15000,16/05/2025,1500,Historico,1417,21255000
+13,Mouse,B001,Accesorios,2Q,300,27/02/2025,1600,Historico,1572,471600
+18,Audifonos,A002,Accesorios,2Q,1200,01/05/2025,60,Historico,51,61200
+19,Laptops,B001,Computo,2Q,15000,18/05/2025,400,Historico,378,5670000
+20,Mouse,C4960,Accesorios,2Q,300,19/06/2025,180,Historico,171,51300
+21,Mochilas Laptop,D3005,Accesorios,2Q,800,20/05/2025,380,Historico,360,288000

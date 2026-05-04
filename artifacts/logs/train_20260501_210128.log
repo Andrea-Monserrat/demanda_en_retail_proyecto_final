@@ -1,0 +1,14 @@
+2026-05-01T21:01:28+0000 - 0e8d88fe4692 - train - INFO - action=train status=started
+2026-05-01T21:01:28+0000 - 0e8d88fe4692 - train - INFO - action=read_matrix status=started file=data/prep/matrix.parquet
+2026-05-01T21:01:29+0000 - 0e8d88fe4692 - train - INFO - action=read_matrix status=success rows=11098754 cols=27
+2026-05-01T21:01:29+0000 - 0e8d88fe4692 - train - INFO - action=load_prep status=success matrix_rows=11,098,754 n_features=23 files=(matrix.parquet,feature_cols.json,meta.json)
+2026-05-01T21:01:29+0000 - 0e8d88fe4692 - train - INFO - action=months status=success valid_month=33 test_month=34
+2026-05-01T21:01:30+0000 - 0e8d88fe4692 - train - INFO - action=split status=success valid_month=33 train_rows=10,646,470 valid_rows=238,084
+2026-05-01T21:01:30+0000 - 0e8d88fe4692 - train - INFO - action=baseline status=success baseline_feature=item_cnt_month_lag_1 baseline_rmse=1.1365
+2026-05-01T21:01:30+0000 - 0e8d88fe4692 - train - INFO - action=model_fit status=started model=HistGradientBoosting
+2026-05-01T21:01:43+0000 - 0e8d88fe4692 - train - INFO - action=model_fit status=success model=HistGradientBoosting rmse=0.8514
+2026-05-01T21:01:43+0000 - 0e8d88fe4692 - train - INFO - action=model_fit status=started model=Ridge
+2026-05-01T21:01:53+0000 - 0e8d88fe4692 - train - INFO - action=model_fit status=success model=Ridge rmse=0.9199
+2026-05-01T21:01:53+0000 - 0e8d88fe4692 - train - INFO - action=model_fit status=started model=PoissonRegressor
+2026-05-01T21:02:23+0000 - 0e8d88fe4692 - train - INFO - action=model_fit status=success model=PoissonRegressor rmse=0.9827
+2026-05-01T21:02:23+0000 - 0e8d88fe4692 - train - INFO - action=model_select status=success best_model=HistGradientBoosting best_rmse=0.8514

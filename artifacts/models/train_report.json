@@ -1,0 +1,12 @@
+{
+  "baseline_rmse_lag_1": 1.1365351577838871,
+  "scores": {
+    "HistGradientBoosting": 0.8513563097974194,
+    "Ridge": 0.9199418607142809,
+    "PoissonRegressor": 0.982713414716322
+  },
+  "best_model": "HistGradientBoosting",
+  "valid_month": 33,
+  "test_month": 34,
+  "improvement_pct_vs_baseline": 0.25091951272544327
+}
