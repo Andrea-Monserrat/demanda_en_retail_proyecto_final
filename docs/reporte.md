@@ -535,7 +535,11 @@ aws ecr delete-repository --repository-name 1c-app --force
 
 - **Pipeline ML original (tareas 01–07):** `https://github.com/Andrea-Monserrat/Prediccion_de-_demanda_en_retail`
 
-### B. Referencias
+### B. Video tour
+
+- **Video tour de app :** `https://drive.google.com/file/d/1Y2TuboX8DhpQ2V6-kbIheJPSVKbvoaOe/view?usp=sharing`
+
+### C. Referencias
 
 - Kaggle Competition: *Predict Future Sales* (2018)
 - AWS CloudFormation Templates: basados en los demos de clase (capítulos 10 y 11)
